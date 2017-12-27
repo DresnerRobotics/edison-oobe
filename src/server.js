@@ -113,6 +113,7 @@ function getStateBasedIndexPage() {
   return fs.readFileSync(site + '/index.html', { encoding: 'utf8' });
 }
 
+/*
 function setHost(params) {
   if (!params.name) {
     return {cmd: ""};
@@ -127,7 +128,9 @@ function setHost(params) {
   }
   return {cmd: "configure_edison", args: ["--changeName", params.name]};
 }
+*/
 
+/*
 function setPass(params) {
   if (fs.existsSync(STATE_DIR + '/password-setup.done')) {
     return {cmd: ""};
@@ -145,6 +148,7 @@ function setPass(params) {
   }
   return {failure: "Passwords do not match. Please try again."};
 }
+*/
 
 function setWiFi(params) {
   var exec_cmd = "", errmsg = "Unknown error occurred.", exec_args=[];
@@ -200,7 +204,7 @@ function setWiFi(params) {
 }
 
 function doSleep() {
-  return {cmd: 'sleep', args: [2]};
+  return { cmd: 'sleep', args: [2] };
 }
 
 function runCmd(i, commands) {
@@ -238,7 +242,9 @@ function runCmd(i, commands) {
 function submitForm(params, res, req) {
   resetCommandOutputBuffer();
 
-  var calls = [setPass, setHost, doSleep, setWiFi];
+  //var calls = [setPass, setHost, doSleep, setWiFi];
+  var calls = [doSleep, setWiFi];
+
   var result = null, commands = [];
 
   // check for errors and respond as soon as we find one
