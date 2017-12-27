@@ -12,7 +12,7 @@ var
 var site = __dirname + '/public';
 var urlobj;
 var injectStatusAfter = '<!-- errors will go here -->';
-var injectPasswordSectionAfter = 'onsubmit="saveFields()">';
+//var injectPasswordSectionAfter = 'onsubmit="saveFields()">';
 var supportedExtensions = {
   "css"   : "text/css",
   "xml"   : "text/xml",
@@ -98,6 +98,7 @@ function isSane(inputarray) {
 }
 // --- end utility functions
 
+/*
 function getStateBasedIndexPage() {
   if (!fs.existsSync(STATE_DIR + '/password-setup.done')) {
     return inject(fs.readFileSync(site + '/password-section.html', {encoding: 'utf8'}),
@@ -105,6 +106,11 @@ function getStateBasedIndexPage() {
       fs.readFileSync(site + '/index.html', {encoding: 'utf8'}));
   }
   return fs.readFileSync(site + '/index.html', {encoding: 'utf8'});
+}
+*/
+
+function getStateBasedIndexPage() {
+  return fs.readFileSync(site + '/index.html', { encoding: 'utf8' });
 }
 
 function setHost(params) {
@@ -346,7 +352,7 @@ function inWhiteList(path) {
     return false;
   // if shell command succeeds and in host AP mode
   var result = shell.exec('configure_edison --showWiFiMode', {silent:true});
-  if ((result.code != 0) || (result.output.trim() === "Master")) {
+  if ((result.code != 0) || (result.stdout.trim() === "Master")) {
     return true;
   }
   return WHITELIST_PATHS[path] || WHITELIST_CMDS[path];
@@ -374,7 +380,7 @@ function requestHandler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
 
     var result = shell.exec('configure_edison --showWiFiMode', {silent:true});
-    if ((result.code != 0) || (result.output.trim() != "Master")) {
+    if ((result.code != 0) || (result.stdout.trim() != "Master")) {
       var res_str = fs.readFileSync(site + '/status.html', {encoding: 'utf8'});
       var myhostname, myipaddr;
       exec('configure_edison --showWiFiIP', function (error, stdout, stderr) {
@@ -436,7 +442,7 @@ exec('configure_edison --showNames', function (error, stdout, stderr) {
         }
       });
       var result = shell.exec('configure_edison --isRestartWithAPSet', {silent:true});
-      if ((result.code != 0) || (result.output.trim() === "True")) {
+      if ((result.code != 0) || (result.stdout.trim() === "True")) {
         exec('configure_edison --enableOneTimeSetup', function (error, stdout, stderr) {
           if (error) {
             console.log("Error starting out-of-box-experience.");
