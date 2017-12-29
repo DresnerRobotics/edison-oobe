@@ -92,7 +92,7 @@ def wifi_mode():
 def ip():
     try:
         ret = subprocess.check_output('ip addr show wlan0 | grep inet',
-            shell=True).strip().split(' ')[1]
+            shell=True).strip().split(' ')[1].split('/')[0]
     except Exception as e:
         ret = ''
 
@@ -427,6 +427,7 @@ def main():
     group.add_argument('--tun-ip', action='store_true')
     group.add_argument('--local-ip', action='store_true')
     group.add_argument('--mode', action='store_true')
+    group.add_argument('--curr-ssid', action='store_true')
 
     parser.add_argument('--hidden', action='store_true')
     parser.add_argument('--proto', dest='proto')
@@ -444,6 +445,9 @@ def main():
 
     if (args.tun_ip):
         print tunnel()
+        exitno = 0
+    elif (args.curr_ssid):
+        print curr_network_ssid():
         exitno = 0
     elif (args.local_ip):
         print ip()
