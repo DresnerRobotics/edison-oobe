@@ -40,9 +40,12 @@ var COMMAND_OUTPUT_MAX = 3072; // bytes
 var WHITELIST_CMDS = {
   "/commandOutput": true
 };
+
 var WHITELIST_API = {
-  'networks': true
-}
+  '/networks': true,
+  '/connect': true
+};
+
 var WHITELIST_PATHS = {
   "/index.html": true,
   "/": true,
@@ -241,32 +244,6 @@ function submitForm(params, res, req) {
   });
 }
 
-function handlePostRequest(req, res) {
-  if (urlobj.pathname === '/submitForm') {
-    var payload = "";
-    req.on('data', function (data) {
-      payload += data;
-    });
-    req.on('end', function () {
-      var params = qs.parse(payload);
-      submitForm(params, res, req);
-    });
-  } else {
-    pageNotFound(res);
-  }
-}
-
-function inWhiteList(path) {
-  if (!path)
-    return false;
-  // if shell command succeeds and in host AP mode
-  var result = shell.exec('configure_edison --showWiFiMode', {silent:true});
-  if ((result.code != 0) || (result.stdout.trim() === "Master")) {
-    return true;
-  }
-  return WHITELIST_PATHS[path] || WHITELIST_CMDS[path];
-}
-
 /* determines if a requested path is
  * whitelisted
  */
@@ -344,15 +321,113 @@ function handle_status(page, res) {
     page = page.replace(/params_ip/g, lstr)
     page = page.replace(/params_hostname/g, host);
     page = page.replace(/params_tunnel_ip/g, tstr);
-    page = page.replace(/params_ssid/g, tstr);
+    page = page.replace(/params_ssid/g, sstr);
 
     /* send */
     res.end(page)
   });
 }
 
+/* handles index page & error reports */
+function handle_index(page, res) {
+  if (has_unreported) {
+    page = injectStatus(page, report_err, true);
+    has_unreported = false;
+  }
+
+  res.end(page);
+}
+
+/* ensures provided parameters are acceptable and
+ * returns formatted arguments for exec
+ */
+function verify_wifi_params(params) {
+  var ret = { succ: true,
+    msg: '',
+    args: [ '--wifi', '--proto', params.protocol, '--ssid', '"' + params.newwifi + '"' ]
+  };
+
+  if (!params || !params.newwifi || !params.protocol) {
+    ret.msg   = 'Invalid parameters provided to verify_wifi_params';
+    ret.succ  = false;
+  } else if (!params.protocol !== 'OPEN' && !params.netpass) {
+    ret.msg   = 'Protocol requires a password be provided.';
+    ret.succ  = false;
+  } else if (params.protocol === 'WEP') {
+    if (params.netpass.length != 5 || params.netpass.length != 13) {
+      ret.msg   = 'Protocol requires a password length of either 5 or 13.';
+      ret.succ  = false;
+    } else {
+      ret.args.push( '--psk',  '"' + params.netpass + '"');
+    }
+  } else if (params.protocol === "WPA-PSK") {
+    if (params.netpass.length < 8 || params.netpass.length > 63) {
+      ret.msg   = 'Protocol requires a password length between 8 and 63.';
+      ret.succ  = false;
+    } else {
+      ret.args.push( '--psk',  '"' + params.netpass + '"');
+    }
+  } else if (params.protocol === "WPA-EAP") {
+    if (!params.netuser) {
+      ret.msg   = "Protocol requires a username be provided.";
+      ret.succ  = false;
+    } else {
+      ret.args.push('--psk', '"' + params.netpass + '"', '--identity', '"' + params.netuser + '"');
+    }
+  }
+
+  return ret;
+}
+
+/* returns the index with an error */
+function on_error_index(res, error) {
+  var page = fs.readFileSync(site + '/index.html', { encoding: 'utf8' });
+
+  res.end(injectStatus(page, error, true));
+}
+
+function on_succ_exit(res) {
+
+}
+
+/* handles connection api */
+function handle_connect(res, params) {
+  var verify  = verify_wifi_params(params);
+
+  if (verify.succ == true) {
+    console.log(verify.args.join(' '));
+    
+    exec('configure_tage ' + verify.args.join(' '), function (err, stdout, stderr) {
+      if (err) {
+        console.log('err!: ' + err);
+        console.log('stderr!: ' + stderr);
+        console.log('stdout!: ' + stdout);
+
+        on_error_index(res, stdout);
+      } else {
+        on_error_index(res, 'We fucking did it!');
+        /* here we send our exit.html page;
+         TODO: we should also disable hostapd & enable wpa_supplicant
+         */
+      }
+    });
+  } else {
+    on_error_index(res, verify.msg);
+  }
+}
+
 function handle_post(req, res, path) {
-  /* POST is our submit buttons */
+  if (path === '/connect') {
+    var payload = '';
+
+    req.on('data', function (data) {
+      payload += data;
+    });
+
+    req.on('end', function () {
+      handle_connect(res, qs.parse(payload));
+    });
+  }
 }
 
 /* We do on-the-fly editing to avoid crazy api calls
@@ -373,32 +448,26 @@ function handle_get(req, res, path) {
       enc.encoding = 'utf8';
     }
 
-    /* load the object */
+    /* load the object and assign content-type */
     obj = fs.readFileSync(site + path, enc);
-
-    /* assign the content-type */
     res.setHeader('content-type', getContentType(path));
 
     /* some items are specific */
     if (path === '/status.html') { /* handle status page */
       handle_status(obj, res);
     } else if (path == '/index.html') { /* handle index page */
-      if (has_unreported) {
-        obj = injectStatus(obj, report_err, true);
-        has_unreported = false;
-      }
-
-      res.send(obj);
+      handle_index(obj, res);
     } else { /* all other objects */
       res.end(obj);
     }
   } else if (is_wl_api(path)) {
-
+    if (path === '/networks') {
+      res.end(JSON.stringify(networks));
+    }
   } else { /* shouldn't be possible */
     res.statusCode(500);
     res.end('Error!');
   }
-
 }
 
 function handler(req, res) {
@@ -407,9 +476,10 @@ function handler(req, res) {
   console.log('urlobj.pathname: ' + urlobj.pathname);
 
   if (!is_wl(urlobj.pathname)) {
+    console.log('not whitelisted');
     pageNotFound(res);  /* 404 if not whitelisted */
   } else if (req.method === 'POST') {
-    res.end('Okay');
+    handle_post(req, res, urlobj.pathname);
   } else if (req.method === 'GET') {
     handle_get(req, res, urlobj.pathname);
   } else {
@@ -515,8 +585,36 @@ exec('configure_edison --showNames', function (error, stdout, stderr) {
   }
 });
 
+function scan(callback) {
+  exec('configure_tage --scan', function (err, stdout, stderr) {
+    if (err) {
+      callback(err, null);
+    } else {
+      var obj = {
+        last_scan: Date.now(),
+        networks: JSON.parse(stdout)
+      };
+
+      callback(null, obj);
+    }
+  });
+}
+
 /* prior to starting the server, we are going to scan for wireless */
 console.log('Starting network scan prior to starting server.');
+scan(function (err, nw) {
+  if (err) {
+    console.log('Initial call to "configure_tage --scan" resulted in error ' + err);
+  } else {
+    networks = nw;
+    console.log(networks);
+
+  }
+
+  http.createServer(handler).listen(80);
+  console.log('Server started on port 80.');
+});
+/*
 exec('configure_tage --scan', function (err, stdout, stderr) {
   if (err) {
     console.log('Initial call to "configure_tage --scan" resulted in error ' + stdout);
@@ -525,10 +623,11 @@ exec('configure_tage --scan', function (err, stdout, stderr) {
     console.log(stdout);
   }
 
-  /* now, start server */
+  / now, start server /
   http.createServer(handler).listen(80);
   console.log("Server started on port 80.");
 });
+*/
 
 //http.createServer(handler).listen(80);
 //http.createServer(requestHandler).listen(80);

@@ -148,7 +148,7 @@ def scan():
     # Otherwise, ensure wpa_supplicant is running
     if (hostapd_active or not wpa_active):
         if (hostapd_active):
-            os.popen('systemctl stop hostapd && sleep 1') # NOTE: belive sleep is necessary here
+            os.popen('systemctl stop hostapd && sleep 2') # NOTE: belive sleep is necessary here
             #print "systemctl stop hostapd"
         if (not wpa_active):
             os.popen('systemctl start wpa_supplicant')
@@ -156,7 +156,7 @@ def scan():
 
         # Give wpa_supplicant time to come up so subse`quent calls to wpa_cli
         # do not fail
-        time.sleep(4)
+        time.sleep(5)
 
     # The work done in configure_edison has the software sleep 6 seconds
     # before checking the results of scan_results; I'm just mimicking that work.
@@ -385,7 +385,7 @@ def connect(proto, hidden, ssid, psk, identity=None):
                         ret = ERR_WPA_SUPP
 
                 except Exception as e:
-                    #print e
+                    print e
                     ret = ERR_WPA_SUPP
                     revert_network(curr_network)
                     restore_backup()

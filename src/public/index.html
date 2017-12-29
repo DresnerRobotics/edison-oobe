@@ -1,11 +1,33 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Edison Setup</title>
+    <title>TagE Setup</title>
     <link rel="stylesheet" type="text/css" href="main.css" media="screen"/>
+    <style>
+      #networks_table {
+        font-family: "Trebuchet MS", Arial, Helvetica, sans-serif;
+        border-collapse: collapse;
+        width: 100%;
+      }
+
+      #networks_table td, #networks_table th {
+        border: 1px solid #ddd;
+        padding: 8px;
+      }
+
+      #networks_table tr:nth-child(even){background-color: #f2f2f2;}
+
+
+      #networks_table th {
+        padding-top: 5px;
+        padding-bottom: 5px;
+        text-align: left;
+        background-color: #4CAF50;
+        color: white;
+      }
+    </style>
     <script type="text/javascript">
         var MANUAL_SETUP_TEXT = "Not listed? Switch to manual setup";
-        var SKIP_SETUP_TEXT = "Not applicable. Skip WiFi setup.";
         var SCANNING_TEXT = "Scanning...";
         var LIST_SEPARATOR = "-------------------------";
         var COOKIE = {};
@@ -66,8 +88,7 @@
             var ssidSelector = document.getElementById("newwifis");
             var selectedValue = ssidSelector[ssidSelector.selectedIndex].value;
             // These text strings come from default values set in functions below. Search to find out where.
-            if (selectedValue !== SCANNING_TEXT && selectedValue !== MANUAL_SETUP_TEXT &&
-                    selectedValue != SKIP_SETUP_TEXT) {
+            if (selectedValue !== SCANNING_TEXT && selectedValue !== MANUAL_SETUP_TEXT) {
                 document.getElementById("newwifi").value = selectedValue;
                 selectProtocolForSsid(selectedValue);
             } else if (selectedValue === MANUAL_SETUP_TEXT) {
@@ -147,13 +168,23 @@
                 opt.textContent = opt.value;
                 ssidSelector.add(opt);
 
-                opt = document.createElement("option");
-                opt.value = SKIP_SETUP_TEXT;
-                opt.textContent = opt.value;
-                ssidSelector.add(opt);
-
                 resetSsidRelatedFields();
             }
+        }
+
+        function to_color_strength(dbm) {
+          var ret = '';
+          var inv = dbm * -1;
+
+          if (inv <= 50) {
+            ret = '<span style="color: green">' + dbm + '</span>';
+          } else if (inv <= 71) {
+            ret = '<span style="color: yellow">' + dbm + '</span>';
+          } else {
+            ret = '<span style="color: red">' + dbm + '</span>';
+          }
+
+          return ret;
         }
 
         function getWiFiNetworks() {
@@ -165,10 +196,37 @@
             }
             xmlhttp.onreadystatechange = function () {
                 if (xmlhttp.readyState === 4 && xmlhttp.status === 200) {
-                    /* TODO:
-                     * We will want to parse out the JSON object returned here
-                     */
-                    document.getElementById("_networks").value = xmlhttp.responseText;
+                  var full  = JSON.parse(xmlhttp.responseText)
+                  var obj   = full.networks;
+                  var added = [];
+                  var back_obj = {};
+                  var table = document.getElementById('networks_table');
+
+                  //console.log(obj);
+
+                  /* add all non-duplicate ssids to object and 'backport' */
+                  for (var i = 0; i < obj.length; i++) {
+                    var ssid      = obj[i];
+                    var row       = table.insertRow(-1);
+                    var prot_cell = row.insertCell(0);
+                    var ss_cell   = row.insertCell(0);
+                    var ssid_cell = row.insertCell(0);
+
+
+                    if (added.indexOf(ssid.ssid) < 0) {
+                      back_obj[ssid.ssid] = ssid.protocol;
+                      added.push(ssid.ssid);
+                    }
+
+                    ssid_cell.innerHTML = ssid.ssid;
+                    ss_cell.innerHTML   = to_color_strength(ssid.signal);
+                    prot_cell.innerHTML = ssid.protocol;
+                  }
+
+                  document.getElementById("networks_time").innerHTML = 'Last Scanned: ' +
+                    (new Date(full.last_scan).toLocaleString());
+                    document.getElementById("_networks").value = JSON.stringify(back_obj);
+                    //document.getElementById("_networks").value = xmlhttp.responseText;
                     initWiFiNetworkFields();
                 } else if (xmlhttp.readyState === 4 && xmlhttp.status === 404) {
                     if (getWiFiNetworks.called) {
@@ -185,7 +243,7 @@
                     }
                 }
             };
-            xmlhttp.open("GET", "wifiNetworks", true);
+            xmlhttp.open("GET", "networks", true);
             xmlhttp.send();
         }
 
@@ -215,12 +273,15 @@
             <td class="menuitem" style="background-color: lightgrey">
                 <a href="/" style="text-decoration: none; color: #0062a8">Configure</a>
             </td>
+            <td class="menuitem" style="background-color: lightgrey">
+                <a href="/status.html" style="text-decoration: none; color: #0062a8">Status</a>
+            </td>
         </tr>
     </table>
 </div>
 <!-- errors will go here -->
 <form id="scan_form" name="scan_form" method="POST" action="scan">
-  <div id="wifi_section" class="section">
+  <div id="rescan_section" class="section">
       <div class="header">Rescan for wireless networks</div>
       <table class="content">
           <tr>
@@ -236,8 +297,37 @@
           </tr>
       </table>
   </div>
+  <div id="rescan_section" class="section">
+      <div class="header">Available Networks:</div>
+      <table class="content">
+          <tr>
+              <td class="left">
+                <div id="networks_time"></div>
+              </td>
+              <td class="middle">
+                <table id="networks_table">
+                  <tr>
+                    <th>SSID</th>
+                    <th>Signal Strength</th>
+                    <th>Protocol</th>
+                  </tr>
+                </table>
+              </td>
+              <td class="right">
+                  <p>The colors for signal strength and how they relate to connectivity:</p>
+                  <p><span style="color: green">Green</span>:  Great signal strength,
+                    between -30and -50 dbm</p>
+                  <p><span style="color: yellow">Yellow</span>: Good signal strength
+                    between -50 and -71 dbm.  At higher values, this becomes increasingly unreliable.</p>
+                  <p><span style="color: red">Red</span>: Bad signal strength >= -73 dbm.  Connectivity
+                    is unreliable at these levels.</p>
+
+              </td>
+          </tr>
+      </table>
+  </div>
 </form>
-<form id="setup_form" name="setup_form" method="POST" action="submitForm" onsubmit="saveFields()">
+<form id="setup_form" name="setup_form" method="POST" action="connect" onsubmit="saveFields()">
     <div id="wifi_section" class="section">
         <div class="header">Connect to a WiFi Network</div>
         <table class="content">
@@ -272,9 +362,9 @@
                         <option value="WPA-PSK">WPA-Personal or WPA2-Personal</option>
                         <option value="WPA-EAP">WPA-Enterprise or WPA2-Enterprise</option>
                     </select>
-                    <input type="password" id="netpass" name="netpass" class="textbox"
+                    <input id="netpass" name="netpass" class="textbox"
                            style="display: none">
-                    <input type="text" id="netuser" name="netuser" class="textbox"
+                    <input id="netuser" name="netuser" class="textbox"
                            style="display: none">
                     <input type="hidden" id="_networks" name="_networks" class="textbox" value="{}">
                 </td>
