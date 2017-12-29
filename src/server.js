@@ -27,8 +27,8 @@ var supportedExtensions = {
   "jpg"   : "image/jpeg",
   "png"   : "image/png"
 };
-var STATE_DIR = '/var/lib/edison_config_tools';
-var NETWORKS_FILE = STATE_DIR + '/networks.txt';
+//var STATE_DIR = '/var/lib/edison_config_tools';
+//var NETWORKS_FILE = STATE_DIR + '/networks.txt';
 var COMMAND_OUTPUT = "";
 var COMMAND_OUTPUT_MAX = 3072; // bytes
 // available when edison is not in AP-mode. In AP-mode, however, all commands and files are available.
@@ -109,9 +109,11 @@ function getStateBasedIndexPage() {
 }
 */
 
+/*
 function getStateBasedIndexPage() {
   return fs.readFileSync(site + '/index.html', { encoding: 'utf8' });
 }
+*/
 
 /*
 function setHost(params) {
@@ -251,7 +253,7 @@ function submitForm(params, res, req) {
   for (var i = 0; i < calls.length; ++i) {
     result = calls[i](params, req);
     if (result.failure) {
-      res.end(injectStatus(getStateBasedIndexPage(), result.failure, true));
+      res.end(injectStatus(fs.readFileSync(site + '/index.html', { encoding: 'utf8' }), result.failure, true));
       return;
     }
     if (result.cmd)
@@ -412,7 +414,7 @@ function requestHandler(req, res) {
         });
       });
     } else {
-      res.end(getStateBasedIndexPage());
+      res.end(fs.readFileSync(site + '/index.html', { encoding: 'utf8' }));
     }
   } else if (urlobj.pathname === '/wifiNetworks') {
     if (fs.existsSync(NETWORKS_FILE)) {

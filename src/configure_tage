@@ -9,7 +9,7 @@ import json
 from shutil import copyfile
 from sys import stdout
 
-PROG_NAME   = 'experimental'
+PROG_NAME   = 'configure_tage'
 WPA_SUPP    = '/etc/wpa_supplicant/wpa_supplicant.conf'
 WPA_SUPP_BK = WPA_SUPP + '.original'
 WPA_PSK     = 'WPA-PSK'
@@ -77,30 +77,25 @@ network={
 
 # returns the wireless mode (managed or master)
 def wifi_mode():
-    ret = ''
-
     try:
         # Try reading this garbage! Ahahahahahaha
         # Shortly after this, I killed myself.
         ret = subprocess.check_output('iwconfig wlan0 | grep Mode:',
             shell=True).strip().split(':')[1].split(' ')[0]
 
-
     except Exception as e:
-        print e
+        ret = ''
 
     return ret
 
 # returns the tunnel ip (if exists)
 def tunnel():
-    ret = ''
-
     try:
         ret = subprocess.check_output('ip addr show tun0 | grep inet',
             shell=True).strip().split(' ')[1]
 
     except Exception as e:
-        print e
+        ret = ''
 
     return ret
 
@@ -144,10 +139,10 @@ def scan():
     if (hostapd_active or not wpa_active):
         if (hostapd_active):
             os.popen('systemctl stop hostapd && sleep 1') # NOTE: belive sleep is necessary here
-            print "systemctl stop hostapd"
+            #print "systemctl stop hostapd"
         if (not wpa_active):
             os.popen('systemctl start wpa_supplicant')
-            print "systemctl start wpa_supplicant"
+            #print "systemctl start wpa_supplicant"
 
         # Give wpa_supplicant time to come up so subse`quent calls to wpa_cli
         # do not fail
@@ -157,10 +152,10 @@ def scan():
     # before checking the results of scan_results; I'm just mimicking that work.
     try:
         subprocess.check_output('wpa_cli scan', shell=True)
-        print "wpa_cli scan"
+        #print "wpa_cli scan"
         time.sleep(6)
         results = subprocess.check_output('wpa_cli scan_results', shell=True).split('\n')
-        print "wpa_cli scan_results"
+        #print "wpa_cli scan_results"
 
         while (len(results)):
             line = results.pop().split('\t')
@@ -180,13 +175,13 @@ def scan():
                     ret.append(network)
 
     except Exception as e:
-        print e
+        #print e
         ret = []
 
     # If hostapd was running prior to this, we need to start it again
     if (hostapd_active):
         os.popen('systemctl stop wpa_supplicant && sleep 1 && systemctl start hostapd')
-        print "systemctl stop wpa_supplicant && sleep 1 && systemctl start hostapd"
+        #print "systemctl stop wpa_supplicant && sleep 1 && systemctl start hostapd"
 
     return ret
 
@@ -218,7 +213,6 @@ def create_backup():
     # If file exists, make a backup of it
     if (os.path.isfile(WPA_SUPP)):
         copyfile(WPA_SUPP, WPA_SUPP_BK)
-        print ''
     else:
         ret = False
 
@@ -327,61 +321,61 @@ def connect(proto, hidden, ssid, psk, identity=None):
     if (hostapd_active or not wpa_active):
         if (hostapd_active):
             os.popen('systemctl stop hostapd && sleep 1')
-            print "systemctl stop hostapd && sleep 1"
+            #print "systemctl stop hostapd && sleep 1"
         if (not wpa_active):
             os.popen('systemctl start wpa_supplicant')
-            print 'systemctl start wpa_supplicant'
+            #print 'systemctl start wpa_supplicant'
 
         # Give wpa_supplicant time to come up so subsequent calls to wpa_cli
         # do not fail
         time.sleep(4)
 
     if (verify_psk(proto, psk)):
-        print "verify_psk"
+        #print "verify_psk"
         if (create_backup()):
-            print "create_backup"
+            #print "create_backup"
 
             network = generate_network(proto, hidden, ssid, psk, identity)
-            print network
+            #print network
             if (network != None):
                 append_wpa(network) # Append our network to the configuration file
-                print "append_wpa"
+                #print "append_wpa"
 
                 try:
                     curr_network = curr_network_id() # attempt to grab current network
-                    print "curr_network " + str(curr_network)
+                    #print "curr_network " + str(curr_network)
 
                     # Have wpa_supplicant reload the configuration file
-                    subprocess.check_output('wpa_cli reconfigure && sleep 2', shell=True) #TODO: sleep necessary?
-                    print "wpa cli reconfigure && sleep 2"
+                    subprocess.check_output('wpa_cli reconfigure && sleep 2', shell=True) #TODO: sleep necessary? probably
+                    #print "wpa cli reconfigure && sleep 2"
 
                     # Next, we'll grab the network id and have wpa_supplicant
                     # enable and select the network
                     # -3 because two lines and index
                     index = (int(subprocess.check_output('wpa_cli list_networks | wc -l', shell=True)) - 3)
-                    print "network id " + str(index)
+                    #print "network id " + str(index)
 
                     # Now, have wpa_cli select the network we want and attempt
                     # to connect to it and sleep for n seconds to allow time
                     # to connect
                     subprocess.check_output('wpa_cli select_network ' + str(index), shell=True)
-                    print "wpa_cli select_network"
+                    #print "wpa_cli select_network"
                     time.sleep(6)
 
                     # finally, verify that we've connected succesfully by comparing the current
                     # connected network to what we're expecting
                     curr = curr_network_ssid() # grab current network
-                    print "curr_network_ssid " + str(curr)
+                    #print "curr_network_ssid " + str(curr)
 
                     # failed
                     if (curr == None or (ssid.lower() != curr.lower())):
-                        print "failed, reverting"
+                        #print "failed, reverting"
                         revert_network(curr_network)
                         restore_backup()
                         ret = ERR_WPA_SUPP
 
                 except Exception as e:
-                    print e
+                    #print e
                     ret = ERR_WPA_SUPP
                     revert_network(curr_network)
                     restore_backup()
@@ -394,15 +388,11 @@ def connect(proto, hidden, ssid, psk, identity=None):
 
     if ((ret != ERR_SUCC) and (hostapd_active)):
         os.popen('systemctl stop wpa_supplicant && sleep 1 && systemctl start hostapd')
-        print "systemctl stop wpa_supplicant && sleep 1 && systemctl start hostapd"
+        #print "systemctl stop wpa_supplicant && sleep 1 && systemctl start hostapd"
 
     return ret
 
 ########
-# TODO:
-# For connecting to a wifi, we can check if we've connected via the
-# 'wpa_cli status' command
-#
 # TODO:
 # Should add additional functionality such as grabbing the
 # tunnel ip and mac address when desplaying the details page
