@@ -165,6 +165,9 @@
             }
             xmlhttp.onreadystatechange = function () {
                 if (xmlhttp.readyState === 4 && xmlhttp.status === 200) {
+                    /* TODO:
+                     * We will want to parse out the JSON object returned here
+                     */
                     document.getElementById("_networks").value = xmlhttp.responseText;
                     initWiFiNetworkFields();
                 } else if (xmlhttp.readyState === 4 && xmlhttp.status === 404) {
@@ -216,7 +219,7 @@
     </table>
 </div>
 <!-- errors will go here -->
-<form id="scan_form" name="scan_form" method="GET" action="scan.html">
+<form id="scan_form" name="scan_form" method="POST" action="scan">
   <div id="wifi_section" class="section">
       <div class="header">Rescan for wireless networks</div>
       <table class="content">
@@ -260,7 +263,7 @@
                     <input type="text" id="newwifi" name="newwifi" class="textbox" style="display: none">
                     <select id="newwifis" name="newwifis" class="selector" onchange="setSsidsRelatedFields()"
                             style="display: inline-block">
-                        <option selected="selected">Scanning...</option>
+                        <option selected="selected">Networks</option>
                     </select>
                     <select id="protocol" name="protocol" class="selector" style="display: none"
                             onchange="displayWiFiInputs(document.getElementById('protocol').value)">
