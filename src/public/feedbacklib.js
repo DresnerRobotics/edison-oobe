@@ -258,6 +258,6 @@ function queryForCommandOutput() {
   xmlhttp.ontimeout = handleServerNonResponse;
   xmlhttp.onerror = handleServerNonResponse;
 
-  xmlhttp.open("GET", OUTPUT_CMD, true);
+  xmlhttp.open("GET", '/', true);
   xmlhttp.send();
 }

@@ -1047,6 +1047,7 @@ def main():
 
     parser.add_argument('--restartWithAP', dest='restartwithap', help=argparse.SUPPRESS, action='store_true', default=False)
     parser.add_argument('--persist', dest='persist', help=argparse.SUPPRESS, action='store_true', default=False)
+    parser.add_argument('--scan', action='store_true')
 
     root_group = parser.add_mutually_exclusive_group()
 
@@ -1084,6 +1085,9 @@ def main():
         sys.exit(1)
 
     args = parser.parse_args()
+
+    if args.scan:
+        scanForNetworks()
 
     if args.name:
         reset("Device Name")

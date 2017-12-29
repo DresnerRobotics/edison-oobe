@@ -390,12 +390,18 @@ function on_error_index(res, error) {
 function on_succ_exit(res, params) {
   var page = fs.readFileSync(site + '/exit.html', { encoding: 'utf8' });
 
-  page = page.replace(/params_new_wifi/g, params.newwifi ? params.newwifi : "");
-  page = page.replace(/params_hostname/g, '<hostname>.local');
-  page = page.replace(/params_ssid/g, params.newwifi);
-  page = page.replace(/params_curr_ssid/g, params.newwifi);
+  exec('hostname', function (err, stdout, stderr) {
+    if (err) {
+      console.log(stderr);
+    } else {
+      page = page.replace(/params_new_wifi/g, params.newwifi ? params.newwifi : "");
+      page = page.replace(/params_hostname/g, stdout.trim() + '.local');
+      page = page.replace(/params_ssid/g, params.newwifi);
+      page = page.replace(/params_curr_ssid/g, params.newwifi);
 
-  res.end(page);
+      res.end(page);
+    }
+  });
 }
 
 /* handles connection api */
