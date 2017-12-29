@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Scanning For Networks</title>
+    <link rel="stylesheet" type="text/css" href="main.css" media="screen"/>
+    <script type="text/javascript">
+      var SCAN_INTERVAL         = 15; // in seconds
+      var MAX_PROGRESS_BAR_LEN  = 935; // px
+      var INTERVAL_LEN          = (MAX_PROGRESS_BAR_LEN / SCAN_INTERVAL);
+
+      function update_progress(interval, text) {
+        document.getElementById("progressbar").style.width = "" +
+          (INTERVAL_LEN * interval) + "px";
+
+        document.getElementById("progresstext").innerHTML = text;
+      }
+
+      window.onload = function () {
+        let curr = 0;
+        let intv = setInterval(function () {
+          let remain    = (SCAN_INTERVAL - curr);
+          let text      = 'Scanning for networks (' + remain + ' seconds)';
+
+          /* do magic */
+          update_progress(curr, text);
+
+          curr++;
+          /* stop if we've hit the current */
+          if (curr >= SCAN_INTERVAL) {
+            clearInterval(intv);
+
+            /* once we're done, we want to reload index.html */
+            window.location.href = '/index.html';
+          }
+        }, 1000);
+      }
+    </script>
+    <noscript>
+        Please enable Javascript. It is needed for this page to work correctly. Thank you.
+    </noscript>
+</head>
+<body>
+<h1>Scanning for Networks</h1>
+<div class='section'>
+    <div class="content" style="padding: 30px; padding-bottom: 0px">
+        Please wait while the TagE scans for wireless networks.  You will be disconnected from the TagE during the scan.
+        Once completed, you should reconnect.  If not, you can continue to refresh until your connection is restored.
+
+        <hr class="progressbar" id="progressbar" align="left">
+        <textarea class="progresstext" id="progresstext" readonly rows="1" cols="200"></textarea><br><br>
+        <textarea class="cmdout" id="cmdout" readonly rows="10"></textarea>
+    </div>
+</div>
+<div class='section'>
+    <div class="content" id="errbox" style="padding: 30px; padding-bottom: 0px; padding-top: 0px; display: none">
+    </div>
+</div>
+</body>
+</html>
