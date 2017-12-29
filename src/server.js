@@ -8,6 +8,10 @@ var
   spawn = require('child_process').spawn,
   shell = require('shelljs');
 
+/* Global objects */
+var networks        = {};
+var report_err      = '';
+var has_unreported  = false;
 
 var site = __dirname + '/public';
 var urlobj;
@@ -43,6 +47,7 @@ var WHITELIST_PATHS = {
   "/index.html": true,
   "/": true,
   "/scan.html": true,
+  "/status.html": true,
   "/main.css": true,
   "/logo-intel.png": true
 };
@@ -301,13 +306,16 @@ function handle_status(page, res) {
   var host  = 'N/A';
   var lstr  = 'N/A';
   var tstr  = 'N/A';
-  var l_ip  = NULL;
-  var t_ip  = NULL;
+  var sstr  = 'N/A';
+  var l_ip  = null;
+  var t_ip  = null;
+  var ssid  = null;
 
   /* if we're not in hostapd mode, grab interweb details */
-  if (result.stdout.trim() !== 'Master') {
-    l_ip = shell.exec('configure_tage --local-ip', { silent: true });
+  if (mode.stdout.trim() !== 'Master') {
+    l_ip  = shell.exec('configure_tage --local-ip', { silent: true });
     t_ip  = shell.exec('configure_tage --tun-ip', { silent: true });
+    ssid  = shell.exec('configure_tage --curr-ssid', { silent: true });
 
     /* If the string isn't empty, assign */
     if (l_ip.stdout.trim() != '') {
@@ -317,10 +325,15 @@ function handle_status(page, res) {
     if (t_ip.stdout.trim() != '') {
       tstr = t_ip.stdout.trim();
     }
+
+    if (ssid.stdout.trim() != '') {
+      sstr = ssid.stdout.trim();
+    }
   }
 
   /* grab our hostname */
   exec('hostname', function (err, stdout, stderr) {
+
     if (err) {
       console.log('executing the command "hostname" resulted in error ' + stderr);
     } else {
@@ -328,12 +341,13 @@ function handle_status(page, res) {
     }
 
     /* modify the page on the fly */
-    res_str = res_str.replace(/params_ip/g, lstr)
-    res_str = res_str.replace(/params_hostname/g, host);
-    res_str = res_str.replace(/params_tunnel_ip/g, tstr);
+    page = page.replace(/params_ip/g, lstr)
+    page = page.replace(/params_hostname/g, host);
+    page = page.replace(/params_tunnel_ip/g, tstr);
+    page = page.replace(/params_ssid/g, tstr);
 
     /* send */
-    res.end(res_str)
+    res.end(page)
   });
 }
 
@@ -346,21 +360,49 @@ function handle_post(req, res, path) {
  */
 function handle_get(req, res, path) {
   if (is_wl_fpath(path)) {
-    var page = fs.readFileSync(site + '/' + path, { encoding: 'utf8' });
+    var obj = null;
+    var enc = { encoding: null };
 
-    if (path === 'status.html') { /* handle status page */
-      handle_status(page, res);
+    /* handle '/' case */
+    if (path === '/') {
+      path = '/index.html';
+    }
+
+    /* handle read encoding */
+    if (path.indexOf('html') > -1) {
+      enc.encoding = 'utf8';
+    }
+
+    /* load the object */
+    obj = fs.readFileSync(site + path, enc);
+
+    /* assign the content-type */
+    res.setHeader('content-type', getContentType(path));
+
+    /* some items are specific */
+    if (path === '/status.html') { /* handle status page */
+      handle_status(obj, res);
+    } else if (path == '/index.html') { /* handle index page */
+      if (has_unreported) {
+        obj = injectStatus(obj, report_err, true);
+        has_unreported = false;
+      }
+
+      res.send(obj);
+    } else { /* all other objects */
+      res.end(obj);
     }
   } else if (is_wl_api(path)) {
 
   } else { /* shouldn't be possible */
-
+    res.statusCode(500);
+    res.end('Error!');
   }
+
 }
 
 function handler(req, res) {
   var urlobj = url.parse(req.url, true);
-
 
   console.log('urlobj.pathname: ' + urlobj.pathname);
 
@@ -473,5 +515,20 @@ exec('configure_edison --showNames', function (error, stdout, stderr) {
   }
 });
 
-http.createServer(handler).listen(80);
+/* prior to starting the server, we are going to scan for wireless */
+console.log('Starting network scan prior to starting server.');
+exec('configure_tage --scan', function (err, stdout, stderr) {
+  if (err) {
+    console.log('Initial call to "configure_tage --scan" resulted in error ' + stdout);
+  } else {
+    networks = JSON.parse(stdout);
+    console.log(stdout);
+  }
+
+  /* now, start server */
+  http.createServer(handler).listen(80);
+  console.log("Server started on port 80.");
+});
+
+//http.createServer(handler).listen(80);
 //http.createServer(requestHandler).listen(80);
