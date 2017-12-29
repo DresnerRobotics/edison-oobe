@@ -27,8 +27,8 @@ var supportedExtensions = {
   "jpg"   : "image/jpeg",
   "png"   : "image/png"
 };
-//var STATE_DIR = '/var/lib/edison_config_tools';
-//var NETWORKS_FILE = STATE_DIR + '/networks.txt';
+var STATE_DIR = '/var/lib/edison_config_tools';
+var NETWORKS_FILE = STATE_DIR + '/networks.txt';
 var COMMAND_OUTPUT = "";
 var COMMAND_OUTPUT_MAX = 3072; // bytes
 // available when edison is not in AP-mode. In AP-mode, however, all commands and files are available.
@@ -307,49 +307,6 @@ function handlePostRequest(req, res) {
       var params = qs.parse(payload);
       submitForm(params, res, req);
     });
-  } else if (urlobj.pathname === '/submitFirmwareImage') {
-    var form = new multiparty.Form();
-
-    form.parse(req, function(err, fields, files) {
-      console.log(files);
-      console.log('Upload completed!');
-
-      if (err) {
-        res.end(injectStatus(fs.readFileSync(site + '/upgrade.html', {encoding: 'utf8'}),
-          "File upload failed. Please try again.", true));
-      } else {
-        var exitupgradeStr = fs.readFileSync(site + '/exit-upgrade.html', {encoding: 'utf8'});
-        var currversion;
-        exec('configure_edison --version ',
-          function (error, stdout, stderr) {
-            if (error) {
-              currversion = "unknown";
-            } else {
-              currversion = stdout.trim();
-            }
-
-            exitupgradeStr = exitupgradeStr.replace(/params_version/g, currversion);
-
-            exec ('configure_edison --showNames', function (error, stdout, stderr) {
-              var nameobj = {};
-              try {
-                nameobj = JSON.parse(stdout);
-              } catch (ex) {
-                console.log("Could not parse output of configure_edison --showNames (may not be valid JSON)");
-                console.log(ex);
-              }
-
-              exitupgradeStr = exitupgradeStr.replace(/params_new_wifi/g, "");
-              exitupgradeStr = exitupgradeStr.replace(/params_hostname/g, "edison.local");
-              exitupgradeStr = exitupgradeStr.replace(/params_ssid/g, nameobj.default_ssid);
-              exitupgradeStr = exitupgradeStr.replace(/params_curr_ssid/g, nameobj.ssid);
-              exitupgradeStr = exitupgradeStr.replace(/params_curr_hostname/g, nameobj.hostname + ".local");
-              res.end(exitupgradeStr);
-              runCmd(0, [{cmd: 'configure_edison', args: ['--flashFile', files.imagefile[0].path, '--restartWithAP']}]);
-            });
-          });
-      }
-    });
   } else {
     pageNotFound(res);
   }
@@ -384,6 +341,7 @@ function requestHandler(req, res) {
   }
 
   // GET request
+  console.log('urlobj.pathname: ' + urlobj.pathname);
   if (!urlobj.pathname || urlobj.pathname === '/' || urlobj.pathname === '/index.html') {
     res.setHeader('Access-Control-Allow-Origin', '*');
 
