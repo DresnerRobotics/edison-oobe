@@ -88,71 +88,6 @@ function pageNotFound(res) {
   res.end("The page at " + urlobj.pathname + " was not found.");
 }
 
-function isSane(inputarray) {
-  for (var i = 0; i < inputarray.length; i++) {
-    if (inputarray[i])
-      if (inputarray[i].search(/\s+/) !== -1)
-        return false;
-  }
-
-  return true;
-}
-// --- end utility functions
-
-/*
-function getStateBasedIndexPage() {
-  if (!fs.existsSync(STATE_DIR + '/password-setup.done')) {
-    return inject(fs.readFileSync(site + '/password-section.html', {encoding: 'utf8'}),
-      injectPasswordSectionAfter,
-      fs.readFileSync(site + '/index.html', {encoding: 'utf8'}));
-  }
-  return fs.readFileSync(site + '/index.html', {encoding: 'utf8'});
-}
-*/
-
-/*
-function getStateBasedIndexPage() {
-  return fs.readFileSync(site + '/index.html', { encoding: 'utf8' });
-}
-*/
-
-/*
-function setHost(params) {
-  if (!params.name) {
-    return {cmd: ""};
-  }
-
-  if (!isSane([params.name])) {
-    return {failure: 'Hostname must not contain whitespaces. Please try again.'};
-  }
-
-  if (params.name.length < 5) {
-    return {failure: "The name is too short (must be at least 5 characters). Please try again."};
-  }
-  return {cmd: "configure_edison", args: ["--changeName", params.name]};
-}
-*/
-
-/*
-function setPass(params) {
-  if (fs.existsSync(STATE_DIR + '/password-setup.done')) {
-    return {cmd: ""};
-  }
-
-  if (!isSane([params.pass1, params.pass2])) {
-    return {failure: 'Passwords must not contain whitespaces. Please try again.'};
-  }
-
-  if (params.pass1 === params.pass2) {
-    if (params.pass1.length < 8 || params.pass1.length > 63) {
-      return {failure: "Passwords must be between 8 and 63 characters long. Please try again."};
-    }
-    return {cmd: "configure_edison", args: ["--changePassword", params.pass1]};
-  }
-  return {failure: "Passwords do not match. Please try again."};
-}
-*/
-
 function setWiFi(params) {
   var exec_cmd = "", errmsg = "Unknown error occurred.", exec_args=[];
 
@@ -328,7 +263,7 @@ function inWhiteList(path) {
 // POST requests are handled in handlePostRequest()
 function requestHandler(req, res) {
 
-  urlobj = url.parse(req.url, true);
+  let urlobj = url.parse(req.url, true);
 
   if (!inWhiteList(urlobj.pathname)) {
     pageNotFound(res);
