@@ -447,7 +447,7 @@ def main():
         print tunnel()
         exitno = 0
     elif (args.curr_ssid):
-        print curr_network_ssid():
+        print curr_network_ssid()
         exitno = 0
     elif (args.local_ip):
         print ip()
