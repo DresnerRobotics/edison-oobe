@@ -39,6 +39,7 @@ var WHITELIST_CMDS = {
 var WHITELIST_PATHS = {
   "/index.html": true,
   "/": true,
+  "/scan.html": true,
   "/main.css": true,
   "/logo-intel.png": true
 };
