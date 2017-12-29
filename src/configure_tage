@@ -88,6 +88,16 @@ def wifi_mode():
 
     return ret
 
+# returns the local ip (if exists)
+def ip():
+    try:
+        ret = subprocess.check_output('ip addr show wlan0 | grep inet',
+            shell=True).strip().split(' ')[1]
+    except Exception as e:
+        ret = ''
+
+    return ret
+
 # returns the tunnel ip (if exists)
 def tunnel():
     try:
@@ -415,6 +425,7 @@ def main():
     group.add_argument('--scan', action='store_true')
     group.add_argument('--wifi', action='store_true') # It's just bad
     group.add_argument('--tun-ip', action='store_true')
+    group.add_argument('--local-ip', action='store_true')
     group.add_argument('--mode', action='store_true')
 
     parser.add_argument('--hidden', action='store_true')
@@ -433,6 +444,9 @@ def main():
 
     if (args.tun_ip):
         print tunnel()
+        exitno = 0
+    elif (args.local_ip):
+        print ip()
         exitno = 0
     elif (args.mode):
         print wifi_mode()
