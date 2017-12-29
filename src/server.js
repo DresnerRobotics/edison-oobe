@@ -52,7 +52,8 @@ var WHITELIST_PATHS = {
   "/scan.html": true,
   "/status.html": true,
   "/main.css": true,
-  "/logo-intel.png": true
+  "/logo-intel.png": true,
+  "/feedbacklib.js": true
 };
 var WHITELIST_EXEC = {
   "configure_edison": true,
@@ -386,8 +387,15 @@ function on_error_index(res, error) {
   res.end(injectStatus(page, error, true));
 }
 
-function on_succ_exit(res) {
+function on_succ_exit(res, params) {
+  var page = fs.readFileSync(site + '/exit.html', { encoding: 'utf8' });
 
+  page = page.replace(/params_new_wifi/g, params.newwifi ? params.newwifi : "");
+  page = page.replace(/params_hostname/g, '<hostname>.local');
+  page = page.replace(/params_ssid/g, params.newwifi);
+  page = page.replace(/params_curr_ssid/g, params.newwifi);
+
+  res.end(page);
 }
 
 /* handles connection api */
@@ -395,21 +403,21 @@ function handle_connect(res, params) {
   var verify  = verify_wifi_params(params);
 
   if (verify.succ == true) {
-    console.log(verify.args.join(' '));
-    
-    exec('configure_tage ' + verify.args.join(' '), function (err, stdout, stderr) {
-      if (err) {
-        console.log('err!: ' + err);
-        console.log('stderr!: ' + stderr);
-        console.log('stdout!: ' + stdout);
+    on_succ_exit(res, params); /* send them to leaving setup page */
 
-        on_error_index(res, stdout);
-      } else {
-        on_error_index(res, 'We fucking did it!');
-        /* here we send our exit.html page;
-         TODO: we should also disable hostapd & enable wpa_supplicant
-         */
-      }
+    exec('sleep 2', function (err, stdout, stderr) {
+      exec('configure_tage ' + verify.args.join(' '), function (err, stdout, stderr) {
+        if (err) {
+          console.log('err!: ' + err);
+          console.log('stderr!: ' + stderr);
+          console.log('stdout!: ' + stdout);
+
+          /* set the error, when they return to the site it'll be here */
+          report_err = stdout;
+        } else {
+          /* TODO: here we do the mdns & disable hostapd & enable wpa_supplicant */
+        }
+      });
     });
   } else {
     on_error_index(res, verify.msg);
