@@ -27,239 +27,248 @@
       }
     </style>
     <script type="text/javascript">
-        var MANUAL_SETUP_TEXT = "Not listed? Switch to manual setup";
-        var SCANNING_TEXT = "Scanning...";
-        var LIST_SEPARATOR = "-------------------------";
-        var COOKIE = {};
+      var MANUAL_SETUP_TEXT = "Not listed? Switch to manual setup";
+      var SCANNING_TEXT = "Scanning...";
+      var LIST_SEPARATOR = "-------------------------";
+      var COOKIE = {};
 
-        function selectProtocolForSsid(ssid) {
-            var networks = JSON.parse(document.getElementById("_networks").value);
-            var protocol = networks[ssid];
-            var protocolSelector = document.getElementById("protocol");
-            for (var i = 0; i < protocolSelector.length; i++) {
-                if (protocolSelector[i].value === protocol) {
-                    protocolSelector.selectedIndex = i;
-                    displayWiFiInputs(protocol);
-                    break;
-                }
+      function selectProtocolForSsid(ssid) {
+        var networks = JSON.parse(document.getElementById("_networks").value);
+        var protocol = networks[ssid];
+        var protocolSelector = document.getElementById("protocol");
+
+          for (var i = 0; i < protocolSelector.length; i++) {
+            if (protocolSelector[i].value === protocol) {
+              protocolSelector.selectedIndex = i;
+              displayWiFiInputs(protocol);
+              break;
             }
-        }
+          }
+      }
 
-        function switchToManualSetup() {
-            document.getElementById("newwifis").style.display = "none";
-            resetSsidRelatedFields();
-            document.getElementById("newwifi").style.display = "inline";
-            document.getElementById("protocollabel").style.display = "inline";
-            document.getElementById("protocol").style.display = "inline";
-        }
+      function switchToManualSetup() {
+        document.getElementById("newwifis").style.display = "none";
+        resetSsidRelatedFields();
+        document.getElementById("newwifi").style.display = "inline";
+        document.getElementById("protocollabel").style.display = "inline";
+        document.getElementById("protocol").style.display = "inline";
+      }
 
-        function switchToAutomaticSetup() {
-            document.getElementById("newwifi").style.display = "none";
-            resetSsidRelatedFields();
-            document.getElementById("newwifis").style.display = "inline";
-            document.getElementById("protocollabel").style.display = "none";
-            document.getElementById("protocol").style.display = "none";
-            document.getElementById("backToAutomatic").style.visibility = "hidden";
-        }
+      function switchToAutomaticSetup() {
+        document.getElementById("newwifi").style.display = "none";
+        resetSsidRelatedFields();
+        document.getElementById("newwifis").style.display = "inline";
+        document.getElementById("protocollabel").style.display = "none";
+        document.getElementById("protocol").style.display = "none";
+        document.getElementById("backToAutomatic").style.visibility = "hidden";
+      }
 
-        function resetSsidRelatedFields() {
-            if (COOKIE.newwifi) {
-                document.getElementById("newwifi").value = COOKIE.newwifi;
-                if (COOKIE.newwifi !== COOKIE.ssidsValue) {
-                    document.getElementById("newwifis").value = COOKIE.ssidsValue;
-                    document.getElementById("protocol").value = COOKIE.protocol;
-                    displayWiFiInputs(COOKIE.protocol);
-                } else {
-                    document.getElementById("newwifis").value = COOKIE.newwifi;
-                    selectProtocolForSsid(COOKIE.newwifi);
-                }
-            } else {
-                if (COOKIE.ssidsValue) {
-                    document.getElementById("newwifis").value = COOKIE.ssidsValue;
-                } else {
-                    document.getElementById("newwifis").selectedIndex = 0;
-                }
-                document.getElementById("newwifi").value = document.getElementById("newwifis").value;
-                selectProtocolForSsid(document.getElementById("newwifi").value)
-            }
-        }
+      function resetSsidRelatedFields() {
+        if (COOKIE.newwifi) {
+          document.getElementById("newwifi").value = COOKIE.newwifi;
 
-        function setSsidsRelatedFields() {
-            var ssidSelector = document.getElementById("newwifis");
-            var selectedValue = ssidSelector[ssidSelector.selectedIndex].value;
-            // These text strings come from default values set in functions below. Search to find out where.
-            if (selectedValue !== SCANNING_TEXT && selectedValue !== MANUAL_SETUP_TEXT) {
-                document.getElementById("newwifi").value = selectedValue;
-                selectProtocolForSsid(selectedValue);
-            } else if (selectedValue === MANUAL_SETUP_TEXT) {
-                document.getElementById("backToAutomatic").style.visibility = "visible";
-                switchToManualSetup();
-            } else { // skip wifi setup
-                document.getElementById("newwifi").value = "";
-                document.getElementById("netpasslabel").style.display="none";
-                document.getElementById("netpass").style.display="none";
-                document.getElementById("netuserlabel").style.display="none";
-                document.getElementById("netuser").style.display="none";
-                document.getElementById("protocol").style.display="none";
-            }
-        }
-
-        function displayWiFiInputs(protocol) {
-            if (protocol === 'WEP' || protocol === 'WPA-PSK') {
-                document.getElementById("netpasslabel").style.display="inline";
-                document.getElementById("netpass").style.display="inline";
-
-                document.getElementById("netuserlabel").style.display="none";
-                document.getElementById("netuser").style.display="none";
-            } else if (protocol === 'WPA-EAP') {
-                document.getElementById("netpasslabel").style.display="inline";
-                document.getElementById("netpass").style.display="inline";
-
-                document.getElementById("netuserlabel").style.display="inline";
-                document.getElementById("netuser").style.display="inline";
-            } else {
-                document.getElementById("netpasslabel").style.display="none";
-                document.getElementById("netpass").style.display="none";
-
-                document.getElementById("netuserlabel").style.display="none";
-                document.getElementById("netuser").style.display="none";
-            }
-        }
-
-        function saveFields() {
-            document.cookie =
-                    '{' +
-                    '"name": "' + document.getElementById("name").value + '",' +
-                    '"newwifi": "' + document.getElementById("newwifi").value + '",' +
-                    '"protocol": "' + document.getElementById("protocol").value + '",' +
-                    '"netuser": "' + document.getElementById("netuser").value + '",' +
-                    '"ssidsValue": "' + document.getElementById("newwifis").value + '"' +
-                    '}';
-        }
-
-        function initWiFiNetworkFields() {
-            var networks = JSON.parse(document.getElementById("_networks").value);
-            console.log("WiFi networks:");
-            console.log(networks);
-            var ssidSelector = document.getElementById("newwifis");
-            ssidSelector.remove(0);
-            for (var ssid in networks) {
-                if (networks.hasOwnProperty(ssid)) {
-                    var opt = document.createElement("option");
-                    opt.value = ssid;
-                    opt.textContent = ssid;
-                    ssidSelector.add(opt);
-                }
-            }
-
-            if (ssidSelector.length === 0) {
-                console.log("No WiFi networks found. Switching to manual setup.");
-                switchToManualSetup();
-            } else {
-                // add the switch to manual setup option
-                var opt = document.createElement("option");
-                opt.value = LIST_SEPARATOR;
-                opt.textContent = opt.value;
-                opt.disabled = "disabled";
-                ssidSelector.add(opt);
-
-                opt = document.createElement("option");
-                opt.value = MANUAL_SETUP_TEXT;
-                opt.textContent = opt.value;
-                ssidSelector.add(opt);
-
-                resetSsidRelatedFields();
-            }
-        }
-
-        function to_color_strength(dbm) {
-          var ret = '';
-          var inv = dbm * -1;
-
-          if (inv <= 50) {
-            ret = '<span style="color: green">' + dbm + '</span>';
-          } else if (inv <= 71) {
-            ret = '<span style="color: yellow">' + dbm + '</span>';
+          if (COOKIE.newwifi !== COOKIE.ssidsValue) {
+            document.getElementById("newwifis").value = COOKIE.ssidsValue;
+            document.getElementById("protocol").value = COOKIE.protocol;
+            displayWiFiInputs(COOKIE.protocol);
           } else {
-            ret = '<span style="color: red">' + dbm + '</span>';
+            document.getElementById("newwifis").value = COOKIE.newwifi;
+            selectProtocolForSsid(COOKIE.newwifi);
+          }
+        } else {
+          if (COOKIE.ssidsValue) {
+            document.getElementById("newwifis").value = COOKIE.ssidsValue;
+          } else {
+            document.getElementById("newwifis").selectedIndex = 0;
           }
 
-          return ret;
+          document.getElementById("newwifi").value = document.getElementById("newwifis").value;
+          selectProtocolForSsid(document.getElementById("newwifi").value)
+        }
+      }
+
+      function setSsidsRelatedFields() {
+        var ssidSelector = document.getElementById("newwifis");
+        var selectedValue = ssidSelector[ssidSelector.selectedIndex].value;
+
+        // These text strings come from default values set in functions below. Search to find out where.
+        if (selectedValue !== SCANNING_TEXT && selectedValue !== MANUAL_SETUP_TEXT) {
+          document.getElementById("newwifi").value = selectedValue;
+          selectProtocolForSsid(selectedValue);
+        } else if (selectedValue === MANUAL_SETUP_TEXT) {
+          document.getElementById("backToAutomatic").style.visibility = "visible";
+          switchToManualSetup();
+        } else { // skip wifi setup
+          document.getElementById("newwifi").value = "";
+          document.getElementById("netpasslabel").style.display="none";
+          document.getElementById("netpass").style.display="none";
+          document.getElementById("netuserlabel").style.display="none";
+          document.getElementById("netuser").style.display="none";
+          document.getElementById("protocol").style.display="none";
+        }
+      }
+
+      function displayWiFiInputs(protocol) {
+        if (protocol === 'WEP' || protocol === 'WPA-PSK') {
+          document.getElementById("netpasslabel").style.display="inline";
+          document.getElementById("netpass").style.display="inline";
+
+          document.getElementById("netuserlabel").style.display="none";
+          document.getElementById("netuser").style.display="none";
+        } else if (protocol === 'WPA-EAP') {
+          document.getElementById("netpasslabel").style.display="inline";
+          document.getElementById("netpass").style.display="inline";
+
+          document.getElementById("netuserlabel").style.display="inline";
+          document.getElementById("netuser").style.display="inline";
+        } else {
+          document.getElementById("netpasslabel").style.display="none";
+          document.getElementById("netpass").style.display="none";
+
+          document.getElementById("netuserlabel").style.display="none";
+          document.getElementById("netuser").style.display="none";
+        }
+      }
+
+      function saveFields() {
+        document.cookie =
+          '{' +
+          '"name": "' + document.getElementById("name").value + '",' +
+          '"newwifi": "' + document.getElementById("newwifi").value + '",' +
+          '"protocol": "' + document.getElementById("protocol").value + '",' +
+          '"netuser": "' + document.getElementById("netuser").value + '",' +
+          '"ssidsValue": "' + document.getElementById("newwifis").value + '"' +
+          '}';
+      }
+
+      function initWiFiNetworkFields() {
+        var networks = JSON.parse(document.getElementById("_networks").value);
+
+        console.log("WiFi networks:");
+        console.log(networks);
+
+        var ssidSelector = document.getElementById("newwifis");
+        ssidSelector.remove(0);
+
+        for (var ssid in networks) {
+          if (networks.hasOwnProperty(ssid)) {
+            var opt = document.createElement("option");
+
+            opt.value = ssid;
+            opt.textContent = ssid;
+            ssidSelector.add(opt);
+          }
         }
 
-        function getWiFiNetworks() {
-            var xmlhttp;
-            if (window.XMLHttpRequest) {
-                xmlhttp=new XMLHttpRequest();
-            } else {
-                xmlhttp=new ActiveXObject("Microsoft.XMLHTTP");
-            }
-            xmlhttp.onreadystatechange = function () {
-                if (xmlhttp.readyState === 4 && xmlhttp.status === 200) {
-                  var full  = JSON.parse(xmlhttp.responseText)
-                  var obj   = full.networks;
-                  var added = [];
-                  var back_obj = {};
-                  var table = document.getElementById('networks_table');
+        if (ssidSelector.length === 0) {
+          console.log("No WiFi networks found. Switching to manual setup.");
+          switchToManualSetup();
+        } else {
+          // add the switch to manual setup option
+          var opt = document.createElement("option");
+          opt.value = LIST_SEPARATOR;
+          opt.textContent = opt.value;
+          opt.disabled = "disabled";
+          ssidSelector.add(opt);
 
-                  //console.log(obj);
+          opt = document.createElement("option");
+          opt.value = MANUAL_SETUP_TEXT;
+          opt.textContent = opt.value;
+          ssidSelector.add(opt);
 
-                  /* add all non-duplicate ssids to object and 'backport' */
-                  for (var i = 0; i < obj.length; i++) {
-                    var ssid      = obj[i];
-                    var row       = table.insertRow(-1);
-                    var prot_cell = row.insertCell(0);
-                    var ss_cell   = row.insertCell(0);
-                    var ssid_cell = row.insertCell(0);
+            resetSsidRelatedFields();
+          }
+      }
+
+      function to_color_strength(dbm) {
+        var ret = '';
+        var inv = dbm * -1;
+
+        if (inv <= 50) {
+          ret = '<span style="color: green">' + dbm + '</span>';
+        } else if (inv <= 71) {
+          ret = '<span style="color: yellow">' + dbm + '</span>';
+        } else {
+          ret = '<span style="color: red">' + dbm + '</span>';
+        }
+
+        return ret;
+      }
+
+      function getWiFiNetworks() {
+        var xmlhttp;
+          if (window.XMLHttpRequest) {
+            xmlhttp=new XMLHttpRequest();
+          } else {
+            xmlhttp=new ActiveXObject("Microsoft.XMLHTTP");
+          }
+
+          xmlhttp.onreadystatechange = function () {
+            if (xmlhttp.readyState === 4 && xmlhttp.status === 200) {
+              var full  = JSON.parse(xmlhttp.responseText)
+              var obj   = full.networks;
+              var added = [];
+              var back_obj = {};
+              var table = document.getElementById('networks_table');
+
+              /* add all non-duplicate ssids to object and 'backport' */
+              for (var i = 0; i < obj.length; i++) {
+                var ssid      = obj[i];
+                var row       = table.insertRow(-1);
+                var prot_cell = row.insertCell(0);
+                var ss_cell   = row.insertCell(0);
+                var ssid_cell = row.insertCell(0);
 
 
-                    if (added.indexOf(ssid.ssid) < 0) {
-                      back_obj[ssid.ssid] = ssid.protocol;
-                      added.push(ssid.ssid);
-                    }
-
-                    ssid_cell.innerHTML = ssid.ssid;
-                    ss_cell.innerHTML   = to_color_strength(ssid.signal);
-                    prot_cell.innerHTML = ssid.protocol;
-                  }
-
-                  document.getElementById("networks_time").innerHTML = 'Last Scanned: ' +
-                    (new Date(full.last_scan).toLocaleString());
-                    document.getElementById("_networks").value = JSON.stringify(back_obj);
-                    //document.getElementById("_networks").value = xmlhttp.responseText;
-                    initWiFiNetworkFields();
-                } else if (xmlhttp.readyState === 4 && xmlhttp.status === 404) {
-                    if (getWiFiNetworks.called) {
-                        getWiFiNetworks.called++;
-                    } else {
-                        getWiFiNetworks.called = 1;
-                    }
-                    if (getWiFiNetworks.called < 5) {
-                        console.log("Retrying getWiFiNetworks: " + getWiFiNetworks.called);
-                        setTimeout(getWiFiNetworks, 2000);
-                    } else { // switch to manual entry
-                        console.log("Giving up on getWiFiNetworks. Switching to manual WiFi Setup.");
-                        switchToManualSetup();
-                    }
+                if (added.indexOf(ssid.ssid) < 0) {
+                  back_obj[ssid.ssid] = ssid.protocol;
+                  added.push(ssid.ssid);
                 }
-            };
-            xmlhttp.open("GET", "networks", true);
-            xmlhttp.send();
+
+                ssid_cell.innerHTML = ssid.ssid;
+                ss_cell.innerHTML   = to_color_strength(ssid.signal);
+                prot_cell.innerHTML = ssid.protocol;
+              }
+
+              document.getElementById("networks_time").innerHTML = 'Last Scanned: ' +
+                (new Date(full.last_scan).toLocaleString());
+              document.getElementById("_networks").value = JSON.stringify(back_obj);
+              //document.getElementById("_networks").value = xmlhttp.responseText;
+              initWiFiNetworkFields();
+            } else if (xmlhttp.readyState === 4 && xmlhttp.status === 404) {
+              if (getWiFiNetworks.called) {
+                getWiFiNetworks.called++;
+              } else {
+                getWiFiNetworks.called = 1;
+              }
+
+              if (getWiFiNetworks.called < 5) {
+                console.log("Retrying getWiFiNetworks: " + getWiFiNetworks.called);
+                setTimeout(getWiFiNetworks, 2000);
+              } else { // switch to manual entry
+                console.log("Giving up on getWiFiNetworks. Switching to manual WiFi Setup.");
+                switchToManualSetup();
+              }
+            }
+          };
+
+          xmlhttp.open("GET", "networks", true);
+          xmlhttp.send();
         }
 
         window.onload = function () {
-            if (document.cookie)
-                COOKIE = JSON.parse(document.cookie);
+          if (document.cookie)
+            COOKIE = JSON.parse(document.cookie);
 
-            getWiFiNetworks();
+          getWiFiNetworks();
 
-            // restore subset of saved fields
-            // wifi related fields will be restored in getWiFiNetworks()
-            if (COOKIE.name)
-                document.getElementById("name").value = COOKIE.name;
-            if (COOKIE.netuser)
-                document.getElementById("netuser").value = COOKIE.netuser;
-        };
+          // restore subset of saved fields
+          // wifi related fields will be restored in getWiFiNetworks()
+          if (COOKIE.name)
+            document.getElementById("name").value = COOKIE.name;
+          if (COOKIE.netuser)
+            document.getElementById("netuser").value = COOKIE.netuser;
+      };
     </script>
     <noscript>
         Please enable Javascript. It is needed for this page to work correctly. Thank you.
