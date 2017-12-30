@@ -24,6 +24,7 @@ ERR_INV_WPA         = 2
 ERR_INV_BK          = 3
 ERR_INV_WPA_ARGS    = 4
 ERR_WPA_SUPP        = 5
+ERR_PERSIST         = 6
 
 err_msg = [
     'success',
@@ -31,7 +32,8 @@ err_msg = [
     'wpa_supplicant.conf not found',
     'wpa_supplicant.conf backup not found',
     'invalid wpa_supplicant arguments',
-    'failed to connect to network'
+    'failed to connect to network',
+    'failed to create persistent environment'
 ]
 
 class wpa_templates:
@@ -138,6 +140,17 @@ def to_protocol(proto):
 
 def is_active(service):
     return (os.popen('systemctl is-active ' + service).read().strip() == 'active')
+
+def persist():
+    ret = ERR_SUCC
+
+    try:
+        subprocess.check_output('systemctl disable hostapd && systemctl enable wpa_supplicant', shell=True);
+    except Exception as e:
+        print >> sys.stderr, "An exception occurred when trying to scan: " + e
+        ret = ERR_PERSIST
+
+    return ret
 
 def scan():
     hostapd_active  = is_active('hostapd')
@@ -430,6 +443,7 @@ def main():
     group.add_argument('--local-ip', action='store_true')
     group.add_argument('--mode', action='store_true')
     group.add_argument('--curr-ssid', action='store_true')
+    group.add_argument('--persist', action='store_true')
 
     parser.add_argument('--hidden', action='store_true')
     parser.add_argument('--proto', dest='proto')
@@ -448,6 +462,8 @@ def main():
     if (args.tun_ip):
         print tunnel()
         exitno = 0
+    elif (args.persist):
+        exitno = persist()
     elif (args.curr_ssid):
         print curr_network_ssid()
         exitno = 0
@@ -483,6 +499,7 @@ def main():
                 print err_msg[errno]
 
             exitno = errno
+            
     sys.exit(exitno)
 
 if __name__ == "__main__":

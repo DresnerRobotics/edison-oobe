@@ -428,10 +428,20 @@ function handle_connect(res, params) {
         } else {
           exec('sleep 2 && systemctl restart mdns', { silent: true });
           status_msg      = 'Connected to wireless network!';
-
           console.log(status_msg);
 
-          /* TODO: here we do the mdns & disable hostapd & enable wpa_supplicant */
+          /* create persistent environment */
+          console.log('Creating persistent environment');
+          exec('configure_tage --persist', function (err, stdout, stderr) {
+            if (err) {
+              has_unreported  = true;
+              report_err      = "Unable to create persistent environment";
+
+              console.log(report_err);
+            } else {
+              console.log('Created persistent enviroment.');
+            }
+          });
         }
       });
     });
