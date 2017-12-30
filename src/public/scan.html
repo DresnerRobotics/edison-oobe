@@ -4,7 +4,7 @@
     <title>Scanning For Networks</title>
     <link rel="stylesheet" type="text/css" href="main.css" media="screen"/>
     <script type="text/javascript">
-      var SCAN_INTERVAL         = 15; // in seconds
+      var SCAN_INTERVAL         = 25; // in seconds
       var MAX_PROGRESS_BAR_LEN  = 935; // px
       var INTERVAL_LEN          = (MAX_PROGRESS_BAR_LEN / SCAN_INTERVAL);
 
@@ -44,7 +44,7 @@
 <div class='section'>
     <div class="content" style="padding: 30px; padding-bottom: 0px">
         Please wait while the TagE scans for wireless networks.  You will be disconnected from the TagE during the scan.
-        Once completed, you should reconnect.  If not, you can continue to refresh until your connection is restored.
+        Once completed, you should reconnect.  If not, it may be necessary to manually reconnect to the TagE wifi.
 
         <hr class="progressbar" id="progressbar" align="left">
         <textarea class="progresstext" id="progresstext" readonly rows="1" cols="200"></textarea><br><br>
