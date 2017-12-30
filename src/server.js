@@ -253,10 +253,10 @@ function handle_connect(res, params) {
       exec('configure_tage ' + verify.args.join(' '), function (err, stdout, stderr) {
         if (err) {
           has_unreported  = true;
-          report_err      = stdout;
+          report_err      = stderr;
           status_msg      = 'Failed to connect to wireless network!';
 
-          console.log('Attempting to connect to wireless network failed with ' + stdout);
+          console.log('Attempting to connect to wireless network failed with ' + stderr);
         } else {
           exec('sleep 2 && systemctl restart mdns', { silent: true });
           status_msg      = 'Connected to wireless network!';
