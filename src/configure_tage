@@ -151,10 +151,10 @@ def scan():
             os.popen('systemctl stop hostapd && sleep 2') # NOTE: belive sleep is necessary here
             #print "systemctl stop hostapd"
         if (not wpa_active):
-            os.popen('systemctl start wpa_supplicant')
+            os.popen('systemctl start wpa_supplicant && sleep 4')
             #print "systemctl start wpa_supplicant"
 
-        # Give wpa_supplicant time to come up so subse`quent calls to wpa_cli
+        # Give wpa_supplicant time to come up so subsequent calls to wpa_cli
         # do not fail
         time.sleep(6)
 
@@ -333,7 +333,7 @@ def connect(proto, hidden, ssid, psk, identity=None):
             os.popen('systemctl stop hostapd && sleep 4')
             print "systemctl stop hostapd && sleep 1"
         if (not wpa_active):
-            os.popen('systemctl start wpa_supplicant')
+            os.popen('systemctl start wpa_supplicant && sleep 10')
             print 'systemctl start wpa_supplicant'
 
         # Give wpa_supplicant time to come up so subsequent calls to wpa_cli
