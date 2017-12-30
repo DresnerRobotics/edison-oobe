@@ -45,7 +45,8 @@ var WHITELIST_CMDS = {
 var WHITELIST_API = {
   '/networks': true,
   '/connect': true,
-  '/message': true
+  '/message': true,
+  '/scan': true
 };
 
 var WHITELIST_PATHS = {
@@ -428,7 +429,7 @@ function handle_connect(res, params) {
         } else {
           exec('sleep 2 && systemctl restart mdns', { silent: true });
           status_msg      = 'Connected to wireless network!';
-          
+
           /* TODO: here we do the mdns & disable hostapd & enable wpa_supplicant */
         }
       });
@@ -450,6 +451,20 @@ function handle_post(req, res, path) {
       handle_connect(res, qs.parse(payload));
     });
   }
+}
+
+function handle_scan(req, res) {
+  res.end(fs.readFileSync(site + '/scan.html', { encoding: 'utf8' }));
+
+  scan(function (err, nw) {
+    if (err) {
+      console.log('An error occurred when scanning for networks: ' + err);
+      report_err = 'An error occurred when scanning for networks: ' + err);
+      has_unreported = true;
+    } else {
+      networks = nw;
+    }
+  });
 }
 
 /* We do on-the-fly editing to avoid crazy api calls
@@ -497,10 +512,8 @@ function handle_get(req, res, path) {
 function handler(req, res) {
   var urlobj = url.parse(req.url, true);
 
-  console.log('urlobj.pathname: ' + urlobj.pathname);
-
   if (!is_wl(urlobj.pathname)) {
-    console.log('not whitelisted');
+    console.log('Requested path ' + urlobj.pathname + ' not whitelisted.');
     pageNotFound(res);  /* 404 if not whitelisted */
   } else if (req.method === 'POST') {
     handle_post(req, res, urlobj.pathname);
