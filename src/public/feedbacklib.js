@@ -164,7 +164,7 @@ function queryForDevice() {
     if (xmlhttp.readyState === 4 && xmlhttp.status === 200) {
       //document.getElementById(COMMAND_OUTPUT_BOX_ID).value = xmlhttp.responseText;
       maxOutProgressBar("Found device. Connecting in 5 seconds...", true);
-      setTimeout(function () { location.replace(PROTO + NEW_HOSTNAME); }, 5000);
+      setTimeout(function () { location.replace(PROTO + NEW_HOSTNAME + "/status.html"); }, 5000);
     } else if (xmlhttp.readyState === 4 && xmlhttp.status === 404) {
       console.log("Unexpected request sent to server. Command: /");
     }
