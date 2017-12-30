@@ -416,19 +416,20 @@ function handle_connect(res, params) {
     on_succ_exit(res, params); /* send them to leaving setup page */
 
     exec('sleep 2', function (err, stdout, stderr) {
+      console.log('Attempting to connect to network ' + params.newwifi);
+
       exec('configure_tage ' + verify.args.join(' '), function (err, stdout, stderr) {
         if (err) {
-          console.log('err!: ' + err);
-          console.log('stderr!: ' + stderr);
-          console.log('stdout!: ' + stdout);
-
-          /* set the error, when they return to the site it'll be here */
           has_unreported  = true;
           report_err      = stdout;
           status_msg      = 'Failed to connect to wireless network!';
+
+          console.log('Attempting to connect to wireless network failed with ' + stdout);
         } else {
           exec('sleep 2 && systemctl restart mdns', { silent: true });
           status_msg      = 'Connected to wireless network!';
+
+          console.log(status_msg);
 
           /* TODO: here we do the mdns & disable hostapd & enable wpa_supplicant */
         }
@@ -454,15 +455,21 @@ function handle_post(req, res, path) {
 }
 
 function handle_scan(req, res) {
+  console.log('Network scan requested');
+
+  /* send page prior to scan */
   res.end(fs.readFileSync(site + '/scan.html', { encoding: 'utf8' }));
 
   scan(function (err, nw) {
     if (err) {
-      console.log('An error occurred when scanning for networks: ' + err);
-      report_err = 'An error occurred when scanning for networks: ' + err);
+      report_err = 'An error occurred when scanning for networks: ' + err;
       has_unreported = true;
+
+      console.log('An error occurred when scanning for networks: ' + err);
     } else {
       networks = nw;
+
+      console.log('Network scan finished.');
     }
   });
 }
@@ -502,6 +509,8 @@ function handle_get(req, res, path) {
       res.end(JSON.stringify(networks));
     } else if (path === '/message') {
       res.end(status_msg);
+    } else if (path === '/scan') {
+      handle_scan(req, res);
     }
   } else { /* shouldn't be possible */
     res.statusCode(500);
