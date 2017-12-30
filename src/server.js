@@ -421,6 +421,7 @@ function handle_connect(res, params) {
           /* set the error, when they return to the site it'll be here */
           report_err = stdout;
         } else {
+          exec('systemctl restart mdns', { silent: true });
           /* TODO: here we do the mdns & disable hostapd & enable wpa_supplicant */
         }
       });
