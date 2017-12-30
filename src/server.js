@@ -12,6 +12,7 @@ var
 var networks        = {};
 var report_err      = '';
 var has_unreported  = false;
+var status_msg      = '';
 
 var site = __dirname + '/public';
 var urlobj;
@@ -43,7 +44,8 @@ var WHITELIST_CMDS = {
 
 var WHITELIST_API = {
   '/networks': true,
-  '/connect': true
+  '/connect': true,
+  '/message': true
 };
 
 var WHITELIST_PATHS = {
@@ -409,6 +411,7 @@ function handle_connect(res, params) {
   var verify  = verify_wifi_params(params);
 
   if (verify.succ == true) {
+    status_msg = "Connecting to wireless network " + params.newwifi;
     on_succ_exit(res, params); /* send them to leaving setup page */
 
     exec('sleep 2', function (err, stdout, stderr) {
@@ -419,9 +422,13 @@ function handle_connect(res, params) {
           console.log('stdout!: ' + stdout);
 
           /* set the error, when they return to the site it'll be here */
-          report_err = stdout;
+          has_unreported  = true;
+          report_err      = stdout;
+          status_msg      = 'Failed to connect to wireless network!';
         } else {
-          exec('systemctl restart mdns', { silent: true });
+          exec('sleep 2 && systemctl restart mdns', { silent: true });
+          status_msg      = 'Connected to wireless network!';
+          
           /* TODO: here we do the mdns & disable hostapd & enable wpa_supplicant */
         }
       });
@@ -478,6 +485,8 @@ function handle_get(req, res, path) {
   } else if (is_wl_api(path)) {
     if (path === '/networks') {
       res.end(JSON.stringify(networks));
+    } else if (path === '/message') {
+      res.end(status_msg);
     }
   } else { /* shouldn't be possible */
     res.statusCode(500);

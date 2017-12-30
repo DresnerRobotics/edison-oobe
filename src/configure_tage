@@ -148,11 +148,11 @@ def scan():
     # Otherwise, ensure wpa_supplicant is running
     if (hostapd_active or not wpa_active):
         if (hostapd_active):
-            os.popen('systemctl stop hostapd && sleep 2') # NOTE: belive sleep is necessary here
-            #print "systemctl stop hostapd"
+            os.popen('systemctl stop hostapd && sleep 4') # NOTE: belive sleep is necessary here
+            #print "systemctl stop hostapd && sleep 4"
         if (not wpa_active):
             os.popen('systemctl start wpa_supplicant && sleep 4')
-            #print "systemctl start wpa_supplicant"
+            #print "systemctl start wpa_supplicant && sleep 4"
 
         # Give wpa_supplicant time to come up so subsequent calls to wpa_cli
         # do not fail
@@ -185,13 +185,13 @@ def scan():
                     ret.append(network)
 
     except Exception as e:
-        #print e
+        print >> sys.stderr, "An exception occurred when trying to scan: " + e
         ret = []
 
     # If hostapd was running prior to this, we need to start it again
     if (hostapd_active):
-        os.popen('systemctl stop wpa_supplicant && sleep 1 && systemctl start hostapd')
-        #print "systemctl stop wpa_supplicant && sleep 1 && systemctl start hostapd"
+        os.popen('systemctl stop wpa_supplicant && sleep 4 && systemctl start hostapd')
+        #print "systemctl stop wpa_supplicant && sleep 4 && systemctl start hostapd"
 
     return ret
 
@@ -331,10 +331,10 @@ def connect(proto, hidden, ssid, psk, identity=None):
     if (hostapd_active or not wpa_active):
         if (hostapd_active):
             os.popen('systemctl stop hostapd && sleep 4')
-            #print "systemctl stop hostapd && sleep 1"
+            #print "systemctl stop hostapd && sleep 4"
         if (not wpa_active):
             os.popen('systemctl start wpa_supplicant && sleep 10')
-            #print 'systemctl start wpa_supplicant'
+            #print 'systemctl start wpa_supplicant && sleep 10'
 
         # Give wpa_supplicant time to come up so subsequent calls to wpa_cli
         # do not fail
@@ -387,7 +387,7 @@ def connect(proto, hidden, ssid, psk, identity=None):
                         subprocess.check_output("udhcpc -i wlan0 -n &> /dev/null", shell=True)
 
                 except Exception as e:
-                    #print e
+                    print >> sys.stderr, "An exception occurred when trying to connect: " + e
                     ret = ERR_WPA_SUPP
                     revert_network(curr_network)
                     restore_backup()
@@ -399,8 +399,8 @@ def connect(proto, hidden, ssid, psk, identity=None):
         ret = ERR_INV_PSK
 
     if ((ret != ERR_SUCC) and (hostapd_active)):
-        os.popen('systemctl stop wpa_supplicant && sleep 1 && systemctl start hostapd')
-        #print "systemctl stop wpa_supplicant && sleep 1 && systemctl start hostapd"
+        os.popen('systemctl stop wpa_supplicant && sleep 4 && systemctl start hostapd')
+        #print "systemctl stop wpa_supplicant && sleep 4 && systemctl start hostapd"
 
     return ret
 

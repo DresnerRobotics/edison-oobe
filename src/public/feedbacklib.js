@@ -199,7 +199,7 @@ function queryForDevice() {
   xmlhttp.ontimeout = handleServerNonResponse;
   xmlhttp.onerror = handleServerNonResponse;
 
-  xmlhttp.open("GET", PROTO + NEW_HOSTNAME + "/", true); // change to edison address
+  xmlhttp.open("GET", PROTO + NEW_HOSTNAME + "/message", true); // change to edison address
   xmlhttp.send();
 }
 
@@ -258,6 +258,6 @@ function queryForCommandOutput() {
   xmlhttp.ontimeout = handleServerNonResponse;
   xmlhttp.onerror = handleServerNonResponse;
 
-  xmlhttp.open("GET", '/', true);
+  xmlhttp.open("GET", '/messages', true);
   xmlhttp.send();
 }
