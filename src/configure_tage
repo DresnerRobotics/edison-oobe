@@ -1,0 +1,506 @@
+#!/usr/bin/python
+
+import os
+import sys
+import time
+import subprocess
+import argparse
+import json
+from shutil import copyfile
+from sys import stdout
+
+PROG_NAME   = 'configure_tage'
+WPA_SUPP    = '/etc/wpa_supplicant/wpa_supplicant.conf'
+WPA_SUPP_BK = WPA_SUPP + '.original'
+WPA_PSK     = 'WPA-PSK'
+WPA_EAP     = 'WPA-EAP'
+WEP         = 'WEP'
+OPEN        = 'OPEN'
+
+# Errors and related messages
+ERR_SUCC            = 0
+ERR_INV_PSK         = 1
+ERR_INV_WPA         = 2
+ERR_INV_BK          = 3
+ERR_INV_WPA_ARGS    = 4
+ERR_WPA_SUPP        = 5
+ERR_PERSIST         = 6
+
+err_msg = [
+    'success',
+    'invalid passphase',
+    'wpa_supplicant.conf not found',
+    'wpa_supplicant.conf backup not found',
+    'invalid wpa_supplicant arguments',
+    'failed to connect to network',
+    'failed to create persistent environment'
+]
+
+class wpa_templates:
+  OPEN =  '''
+network={
+  ssid="%s"
+  %s
+  key_mgmt=NONE
+}'''
+  WEP =  '''
+network={
+  ssid="%s"
+  %s
+  key_mgmt=NONE
+  group=WEP104 WEP40
+  wep_key0="%s"
+}
+'''
+  WPAPSK =  '''
+network={
+  ssid="%s"
+  %s
+  key_mgmt=WPA-PSK
+  pairwise=CCMP TKIP
+  group=CCMP TKIP WEP104 WEP40
+  eap=TTLS PEAP TLS
+  psk="%s"
+}
+'''
+  WPAEAP =  '''
+network={
+  ssid="%s"
+  %s
+  key_mgmt=WPA-EAP
+  pairwise=CCMP TKIP
+  group=CCMP TKIP WEP104 WEP40
+  eap=TTLS PEAP TLS
+  identity="%s"
+  password="%s"
+  phase1="peaplabel=0"
+}
+'''
+
+# returns the wireless mode (managed or master)
+def wifi_mode():
+    try:
+        # Try reading this garbage! Ahahahahahaha
+        # Shortly after this, I killed myself.
+        ret = subprocess.check_output('iwconfig wlan0 | grep Mode:',
+            shell=True).strip().split(':')[1].split(' ')[0]
+
+    except Exception as e:
+        ret = ''
+
+    return ret
+
+# returns the local ip (if exists)
+def ip():
+    try:
+        ret = subprocess.check_output('ip addr show wlan0 | grep inet',
+            shell=True).strip().split(' ')[1].split('/')[0]
+    except Exception as e:
+        ret = ''
+
+    return ret
+
+# returns the tunnel ip (if exists)
+def tunnel():
+    try:
+        ret = subprocess.check_output('ip addr show tun0 | grep inet',
+            shell=True).strip().split(' ')[1]
+
+    except Exception as e:
+        ret = ''
+
+    return ret
+
+# cheesy way to ensure we're using proper protocol names
+def verify_protocol(proto):
+    ret = False
+
+    if (proto == WPA_PSK or proto == WPA_EAP or
+        proto == WEP or proto == OPEN):
+        ret = True
+
+    return ret
+
+# Parses out a protocol based on the returned
+# value from wpa_cli
+def to_protocol(proto):
+    ret = 'UNKNOWN'
+
+    if ('WPA' in proto):
+        if ('PSK' in proto):
+            ret = WPA_PSK
+        else:
+            ret = WPA_EAP
+    elif ('WEP' in proto):
+        ret = WEP
+    elif ('OPEN' in proto):
+        ret = OPEN
+
+    return ret
+
+def is_active(service):
+    return (os.popen('systemctl is-active ' + service).read().strip() == 'active')
+
+def persist():
+    ret = ERR_SUCC
+
+    try:
+        subprocess.check_output('systemctl disable hostapd && systemctl enable wpa_supplicant', shell=True);
+    except Exception as e:
+        print >> sys.stderr, "An exception occurred when trying to scan: " + e
+        ret = ERR_PERSIST
+
+    return ret
+
+def scan():
+    hostapd_active  = is_active('hostapd')
+    wpa_active      = is_active('wpa_supplicant')
+    ret             = []
+
+    # If running, we'll need to stop hostapd and start wpa_supplicant.
+    # Otherwise, ensure wpa_supplicant is running
+    if (hostapd_active or not wpa_active):
+        if (hostapd_active):
+            os.popen('systemctl stop hostapd && sleep 4') # NOTE: belive sleep is necessary here
+            #print "systemctl stop hostapd && sleep 4"
+        if (not wpa_active):
+            os.popen('systemctl start wpa_supplicant && sleep 4')
+            #print "systemctl start wpa_supplicant && sleep 4"
+
+        # Give wpa_supplicant time to come up so subsequent calls to wpa_cli
+        # do not fail
+        time.sleep(6)
+
+    # The work done in configure_edison has the software sleep 6 seconds
+    # before checking the results of scan_results; I'm just mimicking that work.
+    try:
+        subprocess.check_output('wpa_cli scan', shell=True)
+        #print "wpa_cli scan"
+        time.sleep(6)
+        results = subprocess.check_output('wpa_cli scan_results', shell=True).split('\n')
+        #print "wpa_cli scan_results"
+
+        while (len(results)):
+            line = results.pop().split('\t')
+            network = {}
+
+            if (len(line) == 5):
+                ssid = line[4] # Grab the SSID
+
+                # If it isn't hidden or whatnot, build the object and add
+                # to ret array
+                if ((not ssid == '') and ('\\x00' not in ssid)):
+                    network['ssid']     = ssid
+                    network['signal']   = line[2]
+                    network['protocol'] = to_protocol(line[3])
+
+                    # Add to array
+                    ret.append(network)
+
+    except Exception as e:
+        print >> sys.stderr, "An exception occurred when trying to scan: " + e
+        ret = []
+
+    # If hostapd was running prior to this, we need to start it again
+    if (hostapd_active):
+        os.popen('systemctl stop wpa_supplicant && sleep 4 && systemctl start hostapd')
+        #print "systemctl stop wpa_supplicant && sleep 4 && systemctl start hostapd"
+
+    return ret
+
+# Determines if a psk meets the requirements
+# based on the protocol
+def verify_psk(proto, psk):
+    ret = False
+
+    # TODO: Is this correct for WPA_EAP?
+    if (proto == WPA_PSK):
+        if (len(psk) >= 8 and len(psk) <= 63):
+            ret = True
+    elif (proto == WPA_EAP): # TODO: I'm not sure the requirements here (not empty?)
+        if (len(psk) > 0):
+            ret = True
+    elif (proto == WEP):
+        if (len(psk) == 5 or len(psk) == 13): # TODO: verify password req.
+            ret = True
+    elif (proto == OPEN):
+        ret = True
+
+    return ret
+
+# Creates a back up of wpa_supplicant by
+# creating a copy with the constants defined above
+def create_backup():
+    ret = True
+
+    # If file exists, make a backup of it
+    if (os.path.isfile(WPA_SUPP)):
+        copyfile(WPA_SUPP, WPA_SUPP_BK)
+    else:
+        ret = False
+
+    return ret
+
+# Restores a backup of wpa_supplicant (if it exists)
+# by creating a copy with the constants defined above
+def restore_backup():
+    ret = True
+
+    if (os.path.isfile(WPA_SUPP_BK)):
+        copyfile(WPA_SUPP_BK, WPA_SUPP)
+    else:
+        ret = False
+
+    return ret
+
+# Appends a network configuration to the wpa_supplicant configuration
+# file defined in the constants above
+def append_wpa(network_conf):
+    ret = True
+
+    if (os.path.isfile(WPA_SUPP)):
+        fp = open(WPA_SUPP, 'a')
+        fp.write(network_conf)
+        fp.close()
+    else:
+        ret = False
+
+    return ret
+
+# returns the current network (if any) wpa_supplicant
+# is connected to
+def curr_network_id():
+    ret = -1
+
+    # grab list
+    net_list = subprocess.check_output('wpa_cli list_networks', shell=True).split('\n')
+
+    # iterate through, trying to find the one with 'current'
+    while (len(net_list)):
+        line = net_list.pop()
+
+        # If we found it
+        if ('[CURRENT]' in line):
+            ret = int(line.split('\t')[0])
+            break
+
+    return ret
+
+def curr_network_ssid():
+    ret = None
+
+    # grab status
+    status = subprocess.check_output('wpa_cli status', shell=True).split('\n')
+
+    # iterate through lines, trying to find 'ssid'
+    while (len(status)):
+        line = status.pop()
+
+        # If we've found it
+        if ('ssid' in line):
+            ret = line.split('=')[1]
+            break
+
+    return ret
+
+# Attempts to revert to the prior network
+def revert_network(id):
+    ret = True
+
+    try:
+        if (id >= 0):
+            subprocess.check_output('wpa_cli select_network ' + str(id), shell=True)
+        else:
+            ret = False
+    except Exception as e:
+        ret = False
+
+    return ret
+
+# Generates a network string based on the provided arguments
+def generate_network(proto, hidden, ssid, psk, identity=None):
+    ret     = None
+    hstr    = 'scan_ssid=' + ('1' if hidden == True else '0')
+
+    if ((proto == WPA_EAP) and (not identity == None)):
+        ret = wpa_templates.WPAEAP % (ssid, hstr, identity, psk)
+    elif (proto == WPA_PSK):
+        ret = wpa_templates.WPAPSK % (ssid, hstr, psk)
+    elif (proto == WEP):
+        ret = wpa_templates.WEP % (ssid, hstr, psk)
+    elif (proto == OPEN):
+        ret = wpa_templates.OPEN % (ssid, hstr)
+
+    return ret
+
+def connect(proto, hidden, ssid, psk, identity=None):
+    hostapd_active  = is_active('hostapd')
+    wpa_active      = is_active('wpa_supplicant')
+    curr_network    = -1
+    ret             = ERR_SUCC
+
+    # If running, we'll need to stop hostapd and start wpa_supplicant.
+    # Otherwise, ensure wpa_supplicant is running
+    if (hostapd_active or not wpa_active):
+        if (hostapd_active):
+            os.popen('systemctl stop hostapd && sleep 4')
+            #print "systemctl stop hostapd && sleep 4"
+        if (not wpa_active):
+            os.popen('systemctl start wpa_supplicant && sleep 10')
+            #print 'systemctl start wpa_supplicant && sleep 10'
+
+        # Give wpa_supplicant time to come up so subsequent calls to wpa_cli
+        # do not fail
+        time.sleep(6)
+
+    if (verify_psk(proto, psk)):
+        #print "verify_psk"
+        if (create_backup()):
+            #print "create_backup"
+
+            network = generate_network(proto, hidden, ssid, psk, identity)
+            #print network
+            if (network != None):
+                append_wpa(network) # Append our network to the configuration file
+                #print "append_wpa"
+
+                try:
+                    curr_network = curr_network_id() # attempt to grab current network
+                    #print "curr_network " + str(curr_network)
+
+                    # Have wpa_supplicant reload the configuration file
+                    subprocess.check_output('wpa_cli reconfigure && sleep 3', shell=True) #TODO: sleep necessary? probably
+                    #print "wpa cli reconfigure && sleep 2"
+
+                    # Next, we'll grab the network id and have wpa_supplicant
+                    # enable and select the network
+                    # -3 because two lines and index
+                    index = (int(subprocess.check_output('wpa_cli list_networks | wc -l', shell=True)) - 3)
+                    #print "network id " + str(index)
+
+                    # Now, have wpa_cli select the network we want and attempt
+                    # to connect to it and sleep for n seconds to allow time
+                    # to connect
+                    subprocess.check_output('wpa_cli select_network ' + str(index), shell=True)
+                    #print "wpa_cli select_network"
+                    time.sleep(6)
+
+                    # finally, verify that we've connected succesfully by comparing the current
+                    # connected network to what we're expecting
+                    curr = curr_network_ssid() # grab current network
+                    #print "curr_network_ssid " + str(curr)
+
+                    # failed
+                    if (curr == None or (ssid.lower() != curr.lower())):
+                        #print "failed, reverting"
+                        revert_network(curr_network)
+                        restore_backup()
+                        ret = ERR_WPA_SUPP
+                    else: # grab ip
+                        subprocess.check_output("udhcpc -i wlan0 -n &> /dev/null", shell=True)
+
+                except Exception as e:
+                    print >> sys.stderr, "An exception occurred when trying to connect: " + e
+                    ret = ERR_WPA_SUPP
+                    revert_network(curr_network)
+                    restore_backup()
+            else:
+                ret = ERR_INV_WPA_ARGS
+        else:
+            ret = ERR_INV_WPA
+    else:
+        ret = ERR_INV_PSK
+
+    if ((ret != ERR_SUCC) and (hostapd_active)):
+        os.popen('systemctl stop wpa_supplicant && sleep 4 && systemctl start hostapd')
+        #print "systemctl stop wpa_supplicant && sleep 4 && systemctl start hostapd"
+
+    return ret
+
+########
+# TODO:
+# Should add additional functionality such as grabbing the
+# tunnel ip and mac address when desplaying the details page
+#
+# TODO:
+# How are we going to recover the meter if wireless changes after the fact?
+# At a minimum, it can be a manual process but eh?
+#
+# TODO:
+# Successfully connecting to a network should disable hostapd and enable
+# wpa_supplicant
+
+def main():
+    global CURR_PACKAGE_PATH
+
+    # Add ArgumentParser
+    parser  = argparse.ArgumentParser(prog=PROG_NAME)
+    group   = parser.add_mutually_exclusive_group()
+
+    group.add_argument('--scan', action='store_true')
+    group.add_argument('--wifi', action='store_true') # It's just bad
+    group.add_argument('--tun-ip', action='store_true')
+    group.add_argument('--local-ip', action='store_true')
+    group.add_argument('--mode', action='store_true')
+    group.add_argument('--curr-ssid', action='store_true')
+    group.add_argument('--persist', action='store_true')
+
+    parser.add_argument('--hidden', action='store_true')
+    parser.add_argument('--proto', dest='proto')
+    parser.add_argument('--ssid', dest='ssid')
+    parser.add_argument('--psk', dest='psk')
+    parser.add_argument('--identity', dest='identity')
+
+    if (len(sys.argv) == 1):
+        parser.print_help()
+        sys.exit(1)
+
+    # Parse arguments
+    args = parser.parse_args()
+    exitno = 0
+
+    if (args.tun_ip):
+        print tunnel()
+        exitno = 0
+    elif (args.persist):
+        exitno = persist()
+    elif (args.curr_ssid):
+        print curr_network_ssid()
+        exitno = 0
+    elif (args.local_ip):
+        print ip()
+        exitno = 0
+    elif (args.mode):
+        print wifi_mode()
+        exitno = 0
+    elif (args.scan):
+        print json.dumps(scan())
+        exitno = 0
+    elif (args.wifi):
+        if (not args.proto):
+            print "--proto required for --wifi"
+            exitno = 1
+        elif (not args.ssid):
+            print "--ssid required for --wifi"
+            exitno = 1
+        elif ((not args.psk) and (args.proto != OPEN)):
+            print "--psk required for all --proto but " + OPEN
+            exitno = 1
+        elif ((not args.identity) and (args.proto == WPA_EAP)):
+            print "--identity required for --proto " + WPA_EAP
+            exitno = 1
+        elif (not verify_protocol(args.proto)):
+            print "invalid protocol"
+            exitno = 1
+        else:
+            errno = connect(args.proto, args.hidden, args.ssid, args.psk, args.identity)
+
+            if (errno != ERR_SUCC):
+                print err_msg[errno]
+
+            exitno = errno
+            
+    sys.exit(exitno)
+
+if __name__ == "__main__":
+    main()
