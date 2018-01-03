@@ -9,7 +9,7 @@ import json
 from shutil import copyfile
 from sys import stdout
 
-PROG_NAME   = 'configure_tage'
+PROG_NAME   = 'configure_oobe'
 WPA_SUPP    = '/etc/wpa_supplicant/wpa_supplicant.conf'
 WPA_SUPP_BK = WPA_SUPP + '.original'
 WPA_PSK     = 'WPA-PSK'

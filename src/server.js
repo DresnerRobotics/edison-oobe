@@ -115,7 +115,7 @@ function is_wl_fpath(path) {
 
 /* handle_status handles a particular page (status.html) */
 function handle_status(page, res) {
-  var mode  = shell.exec('configure_tage --mode', { silent: true });
+  var mode  = shell.exec('configure_oobe --mode', { silent: true });
   var host  = 'N/A';
   var lstr  = 'N/A';
   var tstr  = 'N/A';
@@ -126,9 +126,9 @@ function handle_status(page, res) {
 
   /* if we're not in hostapd mode, grab interweb details */
   if (mode.stdout.trim() !== 'Master') {
-    l_ip  = shell.exec('configure_tage --local-ip', { silent: true });
-    t_ip  = shell.exec('configure_tage --tun-ip', { silent: true });
-    ssid  = shell.exec('configure_tage --curr-ssid', { silent: true });
+    l_ip  = shell.exec('configure_oobe --local-ip', { silent: true });
+    t_ip  = shell.exec('configure_oobe --tun-ip', { silent: true });
+    ssid  = shell.exec('configure_oobe --curr-ssid', { silent: true });
 
     /* If the string isn't empty, assign */
     if (l_ip.stdout.trim() != '') {
@@ -250,7 +250,7 @@ function handle_connect(res, params) {
     exec('sleep 2', function (err, stdout, stderr) {
       console.log('Attempting to connect to network ' + params.newwifi);
 
-      exec('configure_tage ' + verify.args.join(' '), function (err, stdout, stderr) {
+      exec('configure_oobe ' + verify.args.join(' '), function (err, stdout, stderr) {
         if (err) {
           has_unreported  = true;
           report_err      = stderr;
@@ -264,7 +264,7 @@ function handle_connect(res, params) {
 
           /* create persistent environment */
           console.log('Creating persistent environment');
-          exec('configure_tage --persist', function (err, stdout, stderr) {
+          exec('configure_oobe --persist', function (err, stdout, stderr) {
             if (err) {
               has_unreported  = true;
               report_err      = "Unable to create persistent environment";
@@ -377,7 +377,7 @@ function handler(req, res) {
 }
 
 function scan(callback) {
-  exec('configure_tage --scan', function (err, stdout, stderr) {
+  exec('configure_oobe --scan', function (err, stdout, stderr) {
     if (err) {
       callback(err, null);
     } else {
@@ -395,7 +395,7 @@ function scan(callback) {
 console.log('Starting network scan prior to starting server.');
 scan(function (err, nw) {
   if (err) {
-    console.log('Initial call to "configure_tage --scan" resulted in error ' + err);
+    console.log('Initial call to "configure_oobe --scan" resulted in error ' + err);
   } else {
     networks = nw;
     console.log(networks);
