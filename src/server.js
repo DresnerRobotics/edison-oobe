@@ -46,7 +46,7 @@ var WHITELIST_PATHS = {
   "/scan.html": true,
   "/status.html": true,
   "/main.css": true,
-  "/logo-intel.png": true,
+  "/logo-lo3.png": true,
   "/feedbacklib.js": true
 };
 
